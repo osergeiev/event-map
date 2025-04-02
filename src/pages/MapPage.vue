@@ -1,5 +1,8 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import LocateMe from '../components/LocateMe.vue'
+import AddEvent from '../components/AddEvent.vue'
+import FilterEvents from '../components/FilterEvents.vue'
 import 'ol/ol.css'
 import { Map, View, Overlay } from 'ol'
 import TileLayer from 'ol/layer/Tile'
@@ -11,9 +14,48 @@ import { fromLonLat } from 'ol/proj'
 import { Icon, Style } from 'ol/style'
 import OSM from 'ol/source/OSM'
 
-const popupContent = ref('')
-const popupVisible = ref(false)
-let popupOverlay = null
+const selectedComponent = ref(null)
+const leftDrawerOpen = ref(false)
+
+function toggleLeftDrawer() {
+  leftDrawerOpen.value = !leftDrawerOpen.value
+}
+
+function selectComponent(component) {
+  selectedComponent.value = component
+}
+
+const mapInstance = ref(null)
+
+const userLocationSource = new VectorSource()
+const userLocationLayer = new VectorLayer({
+  source: userLocationSource,
+  style: new Style({
+    image: new Icon({
+      src: 'https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-blue.png',
+      scale: 0.7,
+      anchor: [0.5, 1],
+    }),
+  }),
+})
+
+const handleLocationFound = (coords) => {
+  userLocationSource.clear()
+  if (coords) {
+    const feature = new Feature(new Point(coords))
+    userLocationSource.addFeature(feature)
+
+    mapInstance.value.getView().animate({
+      center: coords,
+      zoom: 14,
+      duration: 1000,
+    })
+  }
+}
+
+const handleLocationError = (message) => {
+  alert(message)
+}
 
 onMounted(() => {
   const eventLocations = [
@@ -101,22 +143,17 @@ onMounted(() => {
     vectorSource.addFeature(marker)
   })
 
-  const popupElement = document.getElementById('popup')
-  popupOverlay = new Overlay({
-    element: popupElement,
-    positioning: 'top-center',
-    offset: [0, -140],
-    stopEvent: false,
-  })
-
   const map = new Map({
     target: 'map',
-    layers: [new TileLayer({ source: new OSM() }), new VectorLayer({ source: vectorSource })],
+    layers: [
+      new TileLayer({ source: new OSM() }),
+      new VectorLayer({ source: vectorSource }),
+      userLocationLayer,
+    ],
     view: new View({
       center: fromLonLat([15.9819, 45.8131]),
       zoom: 14,
     }),
-    overlays: [popupOverlay],
   })
 
   map.on('click', (evt) => {
@@ -124,49 +161,93 @@ onMounted(() => {
     if (feature) {
       const coords = feature.getGeometry().getCoordinates()
       const eventData = feature.get('eventData')
-      popupContent.value = `
-        <strong>${eventData.name}</strong><br>
-        <em>${eventData.category}</em><br>
-        ${eventData.description}
+
+      const popupElement = document.createElement('div')
+      popupElement.className = 'popup'
+      popupElement.innerHTML = `
+        <div>
+          <strong>${eventData.name}</strong><br>
+          <em>${eventData.category}</em><br>
+          ${eventData.description}
+        </div>
+        <button class="close-btn">X</button>
       `
-      popupOverlay.setPosition(coords)
-      popupVisible.value = true
-    } else {
-      popupVisible.value = false
+
+      popupElement.querySelector('.close-btn').addEventListener('click', () => {
+        map.removeOverlay(overlay)
+      })
+
+      const overlay = new Overlay({
+        element: popupElement,
+        position: coords,
+        positioning: 'bottom-center',
+        stopEvent: true,
+        offset: [0, -45],
+      })
+
+      map.addOverlay(overlay)
+
+      setTimeout(() => {
+        map.removeOverlay(overlay)
+      }, 5000)
     }
   })
-
   map.on('pointermove', (evt) => {
     const hit = map.hasFeatureAtPixel(evt.pixel)
     const mapElement = map.getTargetElement()
-    if (hit) {
-      mapElement.style.cursor = 'pointer'
-    } else {
-      mapElement.style.cursor = ''
-    }
+    mapElement.style.cursor = hit ? 'pointer' : ''
   })
-
-  map.on('movestart', () => {
-    popupVisible.value = false
-  })
+  mapInstance.value = map
+  console.log('Map instance created:', mapInstance.value)
 })
 </script>
 
 <template>
-  <div class="map-container">
-    <div id="map"></div>
-    <div id="popup" v-show="popupVisible" class="popup" v-html="popupContent"></div>
-  </div>
+  <q-layout view="lHh Lpr lFf">
+    <q-header elevated>
+      <q-toolbar>
+        <q-btn flat dense round icon="menu" aria-label="Menu" @click="toggleLeftDrawer" />
+        <q-toolbar-title>Interactive Event Map</q-toolbar-title>
+        <LocateMe @location-found="handleLocationFound" @location-error="handleLocationError" />
+      </q-toolbar>
+    </q-header>
+
+    <q-drawer v-model="leftDrawerOpen" show-if-above bordered>
+      <q-list>
+        <q-item-label header>Menu</q-item-label>
+        <q-item clickable @click="selectComponent('AddEvent')">
+          <q-item-section>Add Event</q-item-section>
+        </q-item>
+        <q-item clickable @click="selectComponent('FilterEvents')">
+          <q-item-section>Filter Events</q-item-section>
+        </q-item>
+      </q-list>
+
+      <div v-if="selectedComponent === 'AddEvent'" class="drawer-content">
+        <AddEvent />
+      </div>
+      <div v-else-if="selectedComponent === 'FilterEvents'" class="drawer-content">
+        <FilterEvents />
+      </div>
+    </q-drawer>
+
+    <q-page-container>
+      <div class="map-container">
+        <div id="map"></div>
+      </div>
+    </q-page-container>
+  </q-layout>
 </template>
 
 <style>
 .popup {
-  position: relative;
+  position: absolute;
   background: white;
   padding: 12px;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   white-space: nowrap;
+  transform: translate(-50%, -100%);
 }
 
 .popup::after {
@@ -181,7 +262,23 @@ onMounted(() => {
   transform: translateX(-50%);
 }
 
+.popup:active {
+  cursor: default;
+}
+
+.close-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  color: #333;
+}
+
 .map-container {
+  position: relative;
   display: flex;
   justify-content: center;
   align-items: center;
