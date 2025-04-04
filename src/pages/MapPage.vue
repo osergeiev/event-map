@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import LocateMe from '../components/LocateMe.vue'
 import AddEvent from '../components/AddEvent.vue'
 import FilterEvents from '../components/FilterEvents.vue'
@@ -10,12 +10,101 @@ import VectorLayer from 'ol/layer/Vector'
 import VectorSource from 'ol/source/Vector'
 import { Feature } from 'ol'
 import Point from 'ol/geom/Point'
-import { fromLonLat } from 'ol/proj'
+import { fromLonLat, toLonLat } from 'ol/proj'
 import { Icon, Style } from 'ol/style'
 import OSM from 'ol/source/OSM'
 
 const selectedComponent = ref(null)
 const leftDrawerOpen = ref(false)
+const mapInstance = ref(null)
+const vectorSource = ref(null)
+const userCoords = ref(null)
+
+function haversineDistance(coords1, coords2) {
+  const [lon1, lat1] = coords1
+  const [lon2, lat2] = coords2
+
+  const R = 6371 // Earth radius in km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180
+  const dLon = ((lon2 - lon1) * Math.PI) / 180
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  console.log('Distance:', R * c, 'km')
+  return R * c
+}
+
+const eventLocations = ref([
+  {
+    category: 'Traffic & Accidents',
+    name: 'Car Accident',
+    description: 'Minor crash at. Traffic is slow.',
+    coords: [15.98, 45.81],
+  },
+  {
+    category: 'Traffic & Accidents',
+    name: 'Public Transport Delay',
+    description: 'Trams/buses stopped at. No info yet.',
+    coords: [16.0, 45.8],
+  },
+  {
+    category: 'Emergencies & Hazards',
+    name: 'Fire Alert',
+    description: 'Small fire spotted near. Firefighters on the way.',
+    coords: [15.95, 45.82],
+  },
+  {
+    category: 'Emergencies & Hazards',
+    name: 'Street Flooding',
+    description: 'Water levels rising at. Avoid this area.',
+    coords: [16.01, 45.83],
+  },
+  {
+    category: 'Emergencies & Hazards',
+    name: 'Power Outage',
+    description: 'No electricity in. Anyone else experiencing this?',
+    coords: [15.98, 45.85],
+  },
+  {
+    category: 'Crime & Security',
+    name: 'Police Activity',
+    description: "Heavy police presence at. Something's happening.",
+    coords: [16.05, 45.8],
+  },
+  {
+    category: 'Public Gatherings & Social Events',
+    name: 'Protest/Demonstration',
+    description: 'Large protest gathering at. Expect delays.',
+    coords: [15.96, 45.79],
+  },
+  {
+    category: 'Community & Miscellaneous',
+    name: 'Lost & Found',
+    description: "Found a wallet at. Contact me if it's yours.",
+    coords: [16.02, 45.87],
+  },
+  {
+    category: 'Community & Miscellaneous',
+    name: 'Animal Sightings',
+    description: 'Stray dog spotted near. Looks lost.',
+    coords: [15.99, 45.88],
+  },
+  {
+    category: 'Community & Miscellaneous',
+    name: 'Strange Noise',
+    description: 'Loud explosion heard near. Anyone know what happened?',
+    coords: [15.97, 45.84],
+  },
+])
+
+const categories = computed(() => {
+  const allCategories = eventLocations.value.map((event) => event.category)
+  return [...new Set(allCategories)]
+})
 
 function toggleLeftDrawer() {
   leftDrawerOpen.value = !leftDrawerOpen.value
@@ -24,8 +113,6 @@ function toggleLeftDrawer() {
 function selectComponent(component) {
   selectedComponent.value = component
 }
-
-const mapInstance = ref(null)
 
 const userLocationSource = new VectorSource()
 const userLocationLayer = new VectorLayer({
@@ -39,17 +126,22 @@ const userLocationLayer = new VectorLayer({
   }),
 })
 
-const handleLocationFound = (coords) => {
+const handleLocationFound = (projectedCoords) => {
   userLocationSource.clear()
-  if (coords) {
-    const feature = new Feature(new Point(coords))
+  if (projectedCoords) {
+    const wgs84Coords = toLonLat(projectedCoords)
+    userCoords.value = wgs84Coords
+
+    const feature = new Feature(new Point(projectedCoords))
     userLocationSource.addFeature(feature)
 
     mapInstance.value.getView().animate({
-      center: coords,
+      center: projectedCoords,
       zoom: 14,
       duration: 1000,
     })
+  } else {
+    userCoords.value = null
   }
 }
 
@@ -57,76 +149,27 @@ const handleLocationError = (message) => {
   alert(message)
 }
 
-onMounted(() => {
-  const eventLocations = [
-    {
-      category: 'Traffic & Accidents',
-      name: 'Car Accident',
-      description: 'Minor crash at. Traffic is slow.',
-      coords: [15.98, 45.81],
-    },
-    {
-      category: 'Traffic & Accidents',
-      name: 'Public Transport Delay',
-      description: 'Trams/buses stopped at. No info yet.',
-      coords: [16.0, 45.8],
-    },
+function handleFilterChange(filters) {
+  vectorSource.value.clear()
 
-    {
-      category: 'Emergencies & Hazards',
-      name: 'Fire Alert',
-      description: 'Small fire spotted near. Firefighters on the way.',
-      coords: [15.95, 45.82],
-    },
-    {
-      category: 'Emergencies & Hazards',
-      name: 'Street Flooding',
-      description: 'Water levels rising at. Avoid this area.',
-      coords: [16.01, 45.83],
-    },
-    {
-      category: 'Emergencies & Hazards',
-      name: 'Power Outage',
-      description: 'No electricity in. Anyone else experiencing this?',
-      coords: [15.98, 45.85],
-    },
+  const filteredEvents = eventLocations.value.filter((event) => {
+    const matchesCategory = filters.category === 'All' || event.category === filters.category
+    const matchesName =
+      !filters.name.trim() || event.name.toLowerCase().includes(filters.name.toLowerCase().trim())
+    const matchesDescription =
+      !filters.description.trim() ||
+      event.description.toLowerCase().includes(filters.description.toLowerCase().trim())
+    let matchesDistance = true
+    if (filters.distance !== 'All' && userCoords.value) {
+      const maxDistance = parseInt(filters.distance.value)
+      const distance = haversineDistance(userCoords.value, event.coords)
+      matchesDistance = distance <= maxDistance
+    }
 
-    {
-      category: 'Crime & Security',
-      name: 'Police Activity',
-      description: "Heavy police presence at. Something's happening.",
-      coords: [16.05, 45.8],
-    },
+    return matchesCategory && matchesName && matchesDescription && matchesDistance
+  })
 
-    {
-      category: 'Public Gatherings & Social Events',
-      name: 'Protest/Demonstration',
-      description: 'Large protest gathering at. Expect delays.',
-      coords: [15.96, 45.79],
-    },
-
-    {
-      category: 'Community & Miscellaneous',
-      name: 'Lost & Found',
-      description: "Found a wallet at. Contact me if it's yours.",
-      coords: [16.02, 45.87],
-    },
-    {
-      category: 'Community & Miscellaneous',
-      name: 'Animal Sightings',
-      description: 'Stray dog spotted near. Looks lost.',
-      coords: [15.99, 45.88],
-    },
-    {
-      category: 'Community & Miscellaneous',
-      name: 'Strange Noise',
-      description: 'Loud explosion heard near. Anyone know what happened?',
-      coords: [15.97, 45.84],
-    },
-  ]
-
-  const vectorSource = new VectorSource()
-  eventLocations.forEach((event) => {
+  filteredEvents.forEach((event) => {
     const marker = new Feature({
       geometry: new Point(fromLonLat(event.coords)),
       eventData: event,
@@ -140,14 +183,35 @@ onMounted(() => {
         }),
       }),
     )
-    vectorSource.addFeature(marker)
+    vectorSource.value.addFeature(marker)
+  })
+}
+
+onMounted(() => {
+  vectorSource.value = new VectorSource()
+
+  eventLocations.value.forEach((event) => {
+    const marker = new Feature({
+      geometry: new Point(fromLonLat(event.coords)),
+      eventData: event,
+    })
+    marker.setStyle(
+      new Style({
+        image: new Icon({
+          src: 'https://openlayers.org/en/latest/examples/data/icon.png',
+          scale: 0.8,
+          anchor: [0.5, 1],
+        }),
+      }),
+    )
+    vectorSource.value.addFeature(marker)
   })
 
   const map = new Map({
     target: 'map',
     layers: [
       new TileLayer({ source: new OSM() }),
-      new VectorLayer({ source: vectorSource }),
+      new VectorLayer({ source: vectorSource.value }),
       userLocationLayer,
     ],
     view: new View({
@@ -192,13 +256,14 @@ onMounted(() => {
       }, 5000)
     }
   })
+
   map.on('pointermove', (evt) => {
     const hit = map.hasFeatureAtPixel(evt.pixel)
     const mapElement = map.getTargetElement()
     mapElement.style.cursor = hit ? 'pointer' : ''
   })
+
   mapInstance.value = map
-  console.log('Map instance created:', mapInstance.value)
 })
 </script>
 
@@ -227,7 +292,11 @@ onMounted(() => {
         <AddEvent />
       </div>
       <div v-else-if="selectedComponent === 'FilterEvents'" class="drawer-content">
-        <FilterEvents />
+        <FilterEvents
+          :categories="categories"
+          @filter-change="handleFilterChange"
+          :location-available="!!userCoords"
+        />
       </div>
     </q-drawer>
 
