@@ -16,15 +16,14 @@ import { fromLonLat, toLonLat } from 'ol/proj'
 import { Icon, Style } from 'ol/style'
 import OSM from 'ol/source/OSM'
 import { useAuth0 } from '@auth0/auth0-vue'
-const { isAuthenticated, user } = useAuth0()
 
+const { isAuthenticated, idTokenClaims } = useAuth0()
 const selectedComponent = ref(null)
 const leftDrawerOpen = ref(false)
 const mapInstance = ref(null)
 const vectorSource = ref(null)
 const userCoords = ref(null)
 const selectedCoords = ref(null)
-const admin = 'sergeevogt@gmail.com'
 const eventLocations = ref([
   {
     category: 'Traffic & Accidents',
@@ -102,6 +101,10 @@ const categories = computed(() => {
   return [...new Set(allCategories)]
 })
 const activePopups = new Set()
+const roles = computed(() => {
+  const claims = idTokenClaims.value
+  return claims ? claims['https://interactive-event-map/roles'] || [] : []
+})
 
 function haversineDistance(coords1, coords2) {
   const [lon1, lat1] = coords1
@@ -360,7 +363,7 @@ onMounted(() => {
         </div>
         <button class="close-btn">X</button>
         ${
-          user.value?.email === admin
+          roles.value?.includes('admin')
             ? `
           <button class="approve-btn">✔</button>
           <button class="delete-btn">🗑</button>
@@ -369,7 +372,7 @@ onMounted(() => {
         }
         `
 
-      if (user.value?.email === admin) {
+      if (roles.value?.includes('admin')) {
         popupElement.querySelector('.approve-btn').addEventListener('click', () => {
           approveEvent(eventData)
           map.removeOverlay(overlay)
@@ -413,7 +416,6 @@ onMounted(() => {
   })
 
   mapInstance.value = map
-  console.log(isAuthenticated)
 })
 </script>
 
