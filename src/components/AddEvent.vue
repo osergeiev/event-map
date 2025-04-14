@@ -60,6 +60,7 @@ const handleSubmit = () => {
     name: eventName.value,
     description: eventDescription.value,
     coords: eventCoords.value,
+    status: 'pending',
   })
 
   // Reset form
