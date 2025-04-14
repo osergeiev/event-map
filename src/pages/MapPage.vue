@@ -23,26 +23,8 @@ const leftDrawerOpen = ref(false)
 const mapInstance = ref(null)
 const vectorSource = ref(null)
 const userCoords = ref(null)
+const selectedCoords = ref(null)
 const admin = 'sergeevogt@gmail.com'
-
-function haversineDistance(coords1, coords2) {
-  const [lon1, lat1] = coords1
-  const [lon2, lat2] = coords2
-
-  const R = 6371
-  const dLat = ((lat2 - lat1) * Math.PI) / 180
-  const dLon = ((lon2 - lon1) * Math.PI) / 180
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2)
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-  console.log('Distance:', R * c, 'km')
-  return R * c
-}
-
 const eventLocations = ref([
   {
     category: 'Traffic & Accidents',
@@ -105,11 +87,65 @@ const eventLocations = ref([
     coords: [15.97, 45.84],
   },
 ])
-
 const categories = computed(() => {
   const allCategories = eventLocations.value.map((event) => event.category)
   return [...new Set(allCategories)]
 })
+
+function haversineDistance(coords1, coords2) {
+  const [lon1, lat1] = coords1
+  const [lon2, lat2] = coords2
+
+  const R = 6371
+  const dLat = ((lat2 - lat1) * Math.PI) / 180
+  const dLon = ((lon2 - lon1) * Math.PI) / 180
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  console.log('Distance:', R * c, 'km')
+  return R * c
+}
+
+function loadEvents() {
+  try {
+    const stored = localStorage.getItem('eventLocations')
+    if (stored) {
+      eventLocations.value = JSON.parse(stored)
+    } else {
+      localStorage.setItem('eventLocations', JSON.stringify(eventLocations.value))
+    }
+  } catch (e) {
+    console.error('Error loading events:', e)
+  }
+}
+
+loadEvents()
+
+const handleEventSubmit = (newEvent) => {
+  eventLocations.value = [...eventLocations.value, newEvent]
+  localStorage.setItem('eventLocations', JSON.stringify(eventLocations.value))
+
+  const marker = new Feature({
+    geometry: new Point(fromLonLat(newEvent.coords)),
+    eventData: newEvent,
+  })
+  marker.setStyle(
+    new Style({
+      image: new Icon({
+        src: 'https://openlayers.org/en/latest/examples/data/icon.png',
+        scale: 0.8,
+        anchor: [0.5, 1],
+      }),
+    }),
+  )
+  vectorSource.value.addFeature(marker)
+
+  selectedCoords.value = null
+}
 
 function toggleLeftDrawer() {
   leftDrawerOpen.value = !leftDrawerOpen.value
@@ -117,6 +153,7 @@ function toggleLeftDrawer() {
 
 function selectComponent(component) {
   selectedComponent.value = component
+  selectedCoords.value = null
 }
 
 const userLocationSource = new VectorSource()
@@ -226,6 +263,11 @@ onMounted(() => {
   })
 
   map.on('click', (evt) => {
+    if (selectedComponent.value === 'AddEvent') {
+      const coords = toLonLat(evt.coordinate)
+      selectedCoords.value = coords
+      return
+    }
     const feature = map.forEachFeatureAtPixel(evt.pixel, (f) => f)
     if (feature) {
       const coords = feature.getGeometry().getCoordinates()
@@ -290,7 +332,7 @@ onMounted(() => {
       <q-list>
         <q-item-label header>Menu</q-item-label>
         <q-item v-if="isAuthenticated" clickable @click="selectComponent('AddEvent')">
-          <q-item-section>Add Event</q-item-section>
+          <q-item-section>Add Events</q-item-section>
         </q-item>
         <q-item clickable @click="selectComponent('FilterEvents')">
           <q-item-section>Filter Events</q-item-section>
@@ -298,7 +340,12 @@ onMounted(() => {
       </q-list>
 
       <div v-if="selectedComponent === 'AddEvent'" class="drawer-content">
-        <AddEvent />
+        <AddEvent
+          :categories="categories"
+          :user-coords="userCoords"
+          :selected-coords="selectedCoords"
+          @event-submitted="handleEventSubmit"
+        />
       </div>
       <div v-else-if="selectedComponent === 'FilterEvents'" class="drawer-content">
         <FilterEvents
@@ -366,6 +413,10 @@ onMounted(() => {
   width: 100%;
   height: 100vh;
   border-radius: 8px;
+}
+
+#map:hover {
+  cursor: pointer;
 }
 
 #map:active {
