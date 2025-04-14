@@ -3,6 +3,8 @@ import { ref, onMounted, computed } from 'vue'
 import LocateMe from '../components/LocateMe.vue'
 import AddEvent from '../components/AddEvent.vue'
 import FilterEvents from '../components/FilterEvents.vue'
+import LogIn from '../components/LogIn.vue'
+import LogOut from '../components/LogOut.vue'
 import 'ol/ol.css'
 import { Map, View, Overlay } from 'ol'
 import TileLayer from 'ol/layer/Tile'
@@ -13,18 +15,21 @@ import Point from 'ol/geom/Point'
 import { fromLonLat, toLonLat } from 'ol/proj'
 import { Icon, Style } from 'ol/style'
 import OSM from 'ol/source/OSM'
+import { useAuth0 } from '@auth0/auth0-vue'
+const { isAuthenticated, user } = useAuth0()
 
 const selectedComponent = ref(null)
 const leftDrawerOpen = ref(false)
 const mapInstance = ref(null)
 const vectorSource = ref(null)
 const userCoords = ref(null)
+const admin = 'sergeevogt@gmail.com'
 
 function haversineDistance(coords1, coords2) {
   const [lon1, lat1] = coords1
   const [lon2, lat2] = coords2
 
-  const R = 6371 // Earth radius in km
+  const R = 6371
   const dLat = ((lat2 - lat1) * Math.PI) / 180
   const dLon = ((lon2 - lon1) * Math.PI) / 180
   const a =
@@ -264,23 +269,27 @@ onMounted(() => {
   })
 
   mapInstance.value = map
+  console.log(isAuthenticated)
 })
 </script>
 
 <template>
-  <q-layout view="lHh Lpr lFf">
+  <q-layout view="hHh Lpr fFf">
     <q-header elevated>
       <q-toolbar>
         <q-btn flat dense round icon="menu" aria-label="Menu" @click="toggleLeftDrawer" />
         <q-toolbar-title>Interactive Event Map</q-toolbar-title>
         <LocateMe @location-found="handleLocationFound" @location-error="handleLocationError" />
+        <LogIn v-if="!isAuthenticated" />
+        <LogOut v-if="isAuthenticated" />
+        <q-item-label v-if="isAuthenticated && user.email === admin">Admin</q-item-label>
       </q-toolbar>
     </q-header>
 
     <q-drawer v-model="leftDrawerOpen" show-if-above bordered>
       <q-list>
         <q-item-label header>Menu</q-item-label>
-        <q-item clickable @click="selectComponent('AddEvent')">
+        <q-item v-if="isAuthenticated" clickable @click="selectComponent('AddEvent')">
           <q-item-section>Add Event</q-item-section>
         </q-item>
         <q-item clickable @click="selectComponent('FilterEvents')">
