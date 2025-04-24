@@ -24,78 +24,7 @@ const mapInstance = ref(null)
 const vectorSource = ref(null)
 const userCoords = ref(null)
 const selectedCoords = ref(null)
-const eventLocations = ref([
-  {
-    category: 'Traffic & Accidents',
-    name: 'Car Accident',
-    description: 'Minor crash at. Traffic is slow.',
-    coords: [15.98, 45.81],
-    status: 'approved',
-  },
-  {
-    category: 'Traffic & Accidents',
-    name: 'Public Transport Delay',
-    description: 'Trams/buses stopped at. No info yet.',
-    coords: [16.0, 45.8],
-    status: 'approved',
-  },
-  {
-    category: 'Emergencies & Hazards',
-    name: 'Fire Alert',
-    description: 'Small fire spotted near. Firefighters on the way.',
-    coords: [15.95, 45.82],
-    status: 'approved',
-  },
-  {
-    category: 'Emergencies & Hazards',
-    name: 'Street Flooding',
-    description: 'Water levels rising at. Avoid this area.',
-    coords: [16.01, 45.83],
-    status: 'approved',
-  },
-  {
-    category: 'Emergencies & Hazards',
-    name: 'Power Outage',
-    description: 'No electricity in. Anyone else experiencing this?',
-    coords: [15.98, 45.85],
-    status: 'approved',
-  },
-  {
-    category: 'Crime & Security',
-    name: 'Police Activity',
-    description: "Heavy police presence at. Something's happening.",
-    coords: [16.05, 45.8],
-    status: 'approved',
-  },
-  {
-    category: 'Public Gatherings & Social Events',
-    name: 'Protest/Demonstration',
-    description: 'Large protest gathering at. Expect delays.',
-    coords: [15.96, 45.79],
-    status: 'approved',
-  },
-  {
-    category: 'Community & Miscellaneous',
-    name: 'Lost & Found',
-    description: "Found a wallet at. Contact me if it's yours.",
-    coords: [16.02, 45.87],
-    status: 'approved',
-  },
-  {
-    category: 'Community & Miscellaneous',
-    name: 'Animal Sightings',
-    description: 'Stray dog spotted near. Looks lost.',
-    coords: [15.99, 45.88],
-    status: 'approved',
-  },
-  {
-    category: 'Community & Miscellaneous',
-    name: 'Strange Noise',
-    description: 'Loud explosion heard near. Anyone know what happened?',
-    coords: [15.97, 45.84],
-    status: 'approved',
-  },
-])
+const eventLocations = ref([])
 const categories = computed(() => {
   const allCategories = eventLocations.value.map((event) => event.category)
   return [...new Set(allCategories)]
@@ -124,34 +53,78 @@ function haversineDistance(coords1, coords2) {
   return R * c
 }
 
-function loadEvents() {
+async function loadEvents() {
   try {
-    const stored = localStorage.getItem('eventLocations')
-    if (stored) {
-      eventLocations.value = JSON.parse(stored)
-    } else {
-      localStorage.setItem('eventLocations', JSON.stringify(eventLocations.value))
-    }
-  } catch (e) {
-    console.error('Error loading events:', e)
+    const res = await fetch('https://localhost:7236/api/Event')
+    if (!res.ok) throw new Error('Failed to load events')
+    const data = await res.json()
+    eventLocations.value = data.map((event) => ({
+      id: event.eventId,
+      name: event.eventName,
+      category: event.categoryName,
+      description: event.description,
+      coords: [event.longitude, event.latitude],
+      status: event.status.toLowerCase(), // assuming API returns 'Unapproved'
+      date: event.eventDate,
+    }))
+    refreshMarkers()
+  } catch (error) {
+    console.error('Error loading events:', error)
   }
 }
 
 loadEvents()
 
-const handleEventSubmit = (newEvent) => {
-  eventLocations.value = [...eventLocations.value, newEvent]
-  localStorage.setItem('eventLocations', JSON.stringify(eventLocations.value))
+const handleEventSubmit = async (newEvent) => {
+  try {
+    const res = await fetch('https://localhost:7236/api/Event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        EventName: newEvent.name,
+        Description: newEvent.description,
+        CategoryName: newEvent.category,
+        Longitude: newEvent.coords[0],
+        Latitude: newEvent.coords[1],
+      }),
+    })
+    if (!res.ok) throw new Error('Failed to create event')
 
+    const createdEvent = await res.json()
+    const formattedEvent = {
+      id: createdEvent.eventId,
+      name: createdEvent.eventName,
+      category: createdEvent.categoryName,
+      description: createdEvent.description,
+      coords: [createdEvent.longitude, createdEvent.latitude],
+      status: 'pending',
+    }
+
+    // Add the new event to the eventLocations array
+    eventLocations.value.push(formattedEvent)
+
+    // Add the marker for the new event
+    addMarker(formattedEvent)
+
+    // Clear selected coordinates
+    selectedCoords.value = null
+    loadEvents()
+    selectedCoords.value = null
+  } catch (error) {
+    console.error('Error submitting event:', error)
+  }
+}
+
+function addMarker(event) {
   const marker = new Feature({
-    geometry: new Point(fromLonLat(newEvent.coords)),
-    eventData: newEvent,
+    geometry: new Point(fromLonLat(event.coords)),
+    eventData: event,
   })
-  console.log(newEvent.status)
   const iconSrc =
-    newEvent.status === 'approved'
+    event.status === 'approved'
       ? 'https://openlayers.org/en/latest/examples/data/icon.png'
       : 'https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-red.png'
+
   marker.setStyle(
     new Style({
       image: new Icon({
@@ -162,8 +135,6 @@ const handleEventSubmit = (newEvent) => {
     }),
   )
   vectorSource.value.addFeature(marker)
-
-  selectedCoords.value = null
 }
 
 function toggleLeftDrawer() {
@@ -254,23 +225,36 @@ function handleFilterChange(filters) {
   })
 }
 
-function approveEvent(event) {
-  const index = eventLocations.value.findIndex(
-    (e) => e.name === event.name && e.coords === event.coords,
-  )
-  if (index !== -1) {
-    eventLocations.value[index].status = 'approved'
-    localStorage.setItem('eventLocations', JSON.stringify(eventLocations.value))
-    refreshMarkers()
+async function approveEvent(event) {
+  try {
+    const res = await fetch(`https://localhost:7236/api/Event/${event.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'approved' }),
+    })
+    if (!res.ok) throw new Error('Failed to approve event')
+
+    const updatedEvent = await res.json()
+    const index = eventLocations.value.findIndex((e) => e.id === updatedEvent.id)
+    if (index !== -1) {
+      eventLocations.value[index].status = 'approved'
+      refreshMarkers()
+    }
+  } catch (error) {
+    console.error('Error approving event:', error)
   }
 }
 
-function deleteEvent(event) {
-  eventLocations.value = eventLocations.value.filter(
-    (e) => e.name !== event.name || e.coords !== event.coords,
-  )
-  localStorage.setItem('eventLocations', JSON.stringify(eventLocations.value))
-  refreshMarkers()
+async function deleteEvent(event) {
+  try {
+    const res = await fetch(`https://localhost:7236/api/Event/${event.id}`, { method: 'DELETE' })
+    if (!res.ok) throw new Error('Failed to delete event')
+
+    eventLocations.value = eventLocations.value.filter((e) => e.id !== event.id)
+    refreshMarkers()
+  } catch (error) {
+    console.error('Error deleting event:', error)
+  }
 }
 
 function refreshMarkers() {
@@ -297,6 +281,18 @@ function refreshMarkers() {
     )
     vectorSource.value.addFeature(marker)
   })
+}
+
+function formatDateTime(dateTimeString) {
+  const date = new Date(dateTimeString)
+
+  // Format time (HH:mm) in 24-hour format
+  const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+
+  // Format date (DD/MM/YYYY)
+  const formattedDate = date.toLocaleDateString('en-GB') // 'en-GB' ensures DD/MM/YYYY format
+
+  return `${time} ${formattedDate}`
 }
 
 onMounted(() => {
@@ -359,20 +355,19 @@ onMounted(() => {
         <div>
           <strong>${eventData.name}</strong><br>
           <em>${eventData.category}</em><br>
-          ${eventData.description}
+          ${eventData.description}<br>
+          Created: ${formatDateTime(eventData.date)}
         </div>
         <button class="close-btn">X</button>
         ${
-          roles.value?.includes('admin')
-            ? `
-          <button class="approve-btn">✔</button>
-          <button class="delete-btn">🗑</button>
-        `
+          roles.value?.includes('admin') && eventData.status !== 'approved'
+            ? '<button class="approve-btn">✔</button>'
             : ''
         }
+        ${roles.value?.includes('admin') ? '<button class="delete-btn">🗑</button>' : ''}
         `
 
-      if (roles.value?.includes('admin')) {
+      if (roles.value?.includes('admin') && eventData.status !== 'approved') {
         popupElement.querySelector('.approve-btn').addEventListener('click', () => {
           approveEvent(eventData)
           map.removeOverlay(overlay)

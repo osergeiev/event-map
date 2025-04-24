@@ -63,7 +63,6 @@ const handleSubmit = () => {
     status: 'pending',
   })
 
-  // Reset form
   eventCategory.value = ''
   eventName.value = ''
   eventDescription.value = ''
