@@ -18,7 +18,7 @@ import { Icon, Style } from 'ol/style'
 import OSM from 'ol/source/OSM'
 import { useAuth0 } from '@auth0/auth0-vue'
 
-const { isAuthenticated, idTokenClaims, getAccessTokenSilently } = useAuth0()
+const { user, isAuthenticated, idTokenClaims, getAccessTokenSilently } = useAuth0()
 const selectedComponent = ref(null)
 const leftDrawerOpen = ref(false)
 const mapInstance = ref(null)
@@ -493,6 +493,10 @@ onMounted(() => {
         <LocateMe @location-found="handleLocationFound" @location-error="handleLocationError" />
         <LogIn v-if="!isAuthenticated" />
         <LogOut v-if="isAuthenticated" />
+        <q-chip square color="primary" text-color="white" v-if="isAuthenticated">
+          {{ user.name }}
+          <q-tooltip>{{ user.email }}</q-tooltip>
+        </q-chip>
       </q-toolbar>
     </q-header>
     <EditEvent
