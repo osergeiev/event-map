@@ -1,10 +1,11 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, nextTick } from 'vue'
 import LocateMe from '../components/LocateMe.vue'
 import AddEvent from '../components/AddEvent.vue'
 import FilterEvents from '../components/FilterEvents.vue'
 import LogIn from '../components/LogIn.vue'
 import LogOut from '../components/LogOut.vue'
+import EditEvent from '../components/EditEvent.vue'
 import 'ol/ol.css'
 import { Map, View, Overlay } from 'ol'
 import TileLayer from 'ol/layer/Tile'
@@ -17,7 +18,7 @@ import { Icon, Style } from 'ol/style'
 import OSM from 'ol/source/OSM'
 import { useAuth0 } from '@auth0/auth0-vue'
 
-const { isAuthenticated, idTokenClaims } = useAuth0()
+const { isAuthenticated, idTokenClaims, getAccessTokenSilently } = useAuth0()
 const selectedComponent = ref(null)
 const leftDrawerOpen = ref(false)
 const mapInstance = ref(null)
@@ -34,6 +35,50 @@ const roles = computed(() => {
   const claims = idTokenClaims.value
   return claims ? claims['https://interactive-event-map/roles'] || [] : []
 })
+
+const editEventDialog = ref(false)
+const currentEventToEdit = ref(null)
+const mapClickEnabled = ref(false)
+
+const openEditDialog = (event) => {
+  editEventDialog.value = false
+
+  nextTick(() => {
+    currentEventToEdit.value = { ...event }
+    editEventDialog.value = true
+  })
+}
+
+const handleUpdateEvent = async (updatedEvent) => {
+  try {
+    const token = await getAccessTokenSilently()
+    const res = await fetch(`https://localhost:7236/api/Event/${updatedEvent.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        EventName: updatedEvent.name,
+        Description: updatedEvent.description,
+        CategoryName: updatedEvent.category,
+        Status: updatedEvent.status,
+        Longitude: updatedEvent.coords[0],
+        Latitude: updatedEvent.coords[1],
+      }),
+    })
+
+    if (!res.ok) throw new Error('Failed to update event')
+
+    const index = eventLocations.value.findIndex((e) => e.id === updatedEvent.id)
+    if (index !== -1) {
+      eventLocations.value[index] = updatedEvent
+      refreshMarkers()
+    }
+
+    activePopups.forEach((popup) => mapInstance.value.removeOverlay(popup))
+    activePopups.clear()
+  } catch (error) {
+    console.error('Error updating event:', error)
+  }
+}
 
 function haversineDistance(coords1, coords2) {
   const [lon1, lat1] = coords1
@@ -55,7 +100,7 @@ function haversineDistance(coords1, coords2) {
 
 async function loadEvents() {
   try {
-    const res = await fetch('https://localhost:7236/api/Event')
+    const res = await fetch('https://localhost:7236/api/Event', {})
     if (!res.ok) throw new Error('Failed to load events')
     const data = await res.json()
     eventLocations.value = data.map((event) => ({
@@ -64,7 +109,7 @@ async function loadEvents() {
       category: event.categoryName,
       description: event.description,
       coords: [event.longitude, event.latitude],
-      status: event.status.toLowerCase(), // assuming API returns 'Unapproved'
+      status: event.status.toLowerCase(),
       date: event.eventDate,
     }))
     refreshMarkers()
@@ -77,9 +122,11 @@ loadEvents()
 
 const handleEventSubmit = async (newEvent) => {
   try {
+    const token = await getAccessTokenSilently()
+    console.log(token)
     const res = await fetch('https://localhost:7236/api/Event', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         EventName: newEvent.name,
         Description: newEvent.description,
@@ -99,14 +146,8 @@ const handleEventSubmit = async (newEvent) => {
       coords: [createdEvent.longitude, createdEvent.latitude],
       status: 'pending',
     }
-
-    // Add the new event to the eventLocations array
     eventLocations.value.push(formattedEvent)
-
-    // Add the marker for the new event
     addMarker(formattedEvent)
-
-    // Clear selected coordinates
     selectedCoords.value = null
     loadEvents()
     selectedCoords.value = null
@@ -227,9 +268,10 @@ function handleFilterChange(filters) {
 
 async function approveEvent(event) {
   try {
+    const token = await getAccessTokenSilently()
     const res = await fetch(`https://localhost:7236/api/Event/${event.id}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ status: 'approved' }),
     })
     if (!res.ok) throw new Error('Failed to approve event')
@@ -247,7 +289,11 @@ async function approveEvent(event) {
 
 async function deleteEvent(event) {
   try {
-    const res = await fetch(`https://localhost:7236/api/Event/${event.id}`, { method: 'DELETE' })
+    const token = await getAccessTokenSilently()
+    const res = await fetch(`https://localhost:7236/api/Event/${event.id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    })
     if (!res.ok) throw new Error('Failed to delete event')
 
     eventLocations.value = eventLocations.value.filter((e) => e.id !== event.id)
@@ -335,6 +381,12 @@ onMounted(() => {
   })
 
   map.on('click', (evt) => {
+    if (mapClickEnabled.value) {
+      const coords = toLonLat(evt.coordinate)
+      selectedCoords.value = coords
+      mapClickEnabled.value = false
+      return
+    }
     if (selectedComponent.value === 'AddEvent') {
       const coords = toLonLat(evt.coordinate)
       selectedCoords.value = coords
@@ -365,11 +417,29 @@ onMounted(() => {
             : ''
         }
         ${roles.value?.includes('admin') ? '<button class="delete-btn">🗑</button>' : ''}
+        ${
+          roles.value?.includes('admin') && eventData.status == 'approved'
+            ? '<button class="edit-btn">✎</button>'
+            : ''
+        }
         `
 
       if (roles.value?.includes('admin') && eventData.status !== 'approved') {
         popupElement.querySelector('.approve-btn').addEventListener('click', () => {
           approveEvent(eventData)
+          map.removeOverlay(overlay)
+          activePopups.delete(feature)
+        })
+
+        popupElement.querySelector('.delete-btn').addEventListener('click', () => {
+          deleteEvent(eventData)
+          map.removeOverlay(overlay)
+          activePopups.delete(feature)
+        })
+      }
+      if (roles.value?.includes('admin') && eventData.status == 'approved') {
+        popupElement.querySelector('.edit-btn').addEventListener('click', () => {
+          openEditDialog(eventData)
           map.removeOverlay(overlay)
           activePopups.delete(feature)
         })
@@ -425,7 +495,15 @@ onMounted(() => {
         <LogOut v-if="isAuthenticated" />
       </q-toolbar>
     </q-header>
-
+    <EditEvent
+      v-if="editEventDialog"
+      :event="currentEventToEdit"
+      :categories="categories"
+      :selected-coords="selectedCoords"
+      :map-click-enabled="mapClickEnabled"
+      @update-event="handleUpdateEvent"
+      @update:mapClickEnabled="(val) => (mapClickEnabled = val)"
+    />
     <q-drawer v-model="leftDrawerOpen" show-if-above bordered>
       <q-list>
         <q-item-label header>Menu</q-item-label>
@@ -453,7 +531,6 @@ onMounted(() => {
         />
       </div>
     </q-drawer>
-
     <q-page-container>
       <div class="map-container">
         <div id="map"></div>
@@ -522,7 +599,8 @@ onMounted(() => {
 }
 
 .approve-btn,
-.delete-btn {
+.delete-btn,
+.edit-btn {
   display: inline-block;
   padding: 3px 8px;
   font-size: 14px;
@@ -553,6 +631,14 @@ onMounted(() => {
 
 .delete-btn:hover {
   background-color: #e53935;
+  transform: scale(1.05);
+}
+
+.edit-btn {
+  background-color: #ffc107;
+}
+.edit-btn:hover {
+  background-color: #ffbf00;
   transform: scale(1.05);
 }
 
