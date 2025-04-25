@@ -17,6 +17,7 @@ import { fromLonLat, toLonLat } from 'ol/proj'
 import { Icon, Style } from 'ol/style'
 import OSM from 'ol/source/OSM'
 import { useAuth0 } from '@auth0/auth0-vue'
+import AppSettings from 'src/settings.js'
 
 const { user, isAuthenticated, idTokenClaims, getAccessTokenSilently } = useAuth0()
 const selectedComponent = ref(null)
@@ -52,7 +53,7 @@ const openEditDialog = (event) => {
 const handleUpdateEvent = async (updatedEvent) => {
   try {
     const token = await getAccessTokenSilently()
-    const res = await fetch(`https://localhost:7236/api/Event/${updatedEvent.id}`, {
+    const res = await fetch(`${AppSettings.EventApi}/api/Event/${updatedEvent.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
@@ -100,7 +101,7 @@ function haversineDistance(coords1, coords2) {
 
 async function loadEvents() {
   try {
-    const res = await fetch('https://localhost:7236/api/Event', {})
+    const res = await fetch(`${AppSettings.EventApi}/api/Event`, {})
     if (!res.ok) throw new Error('Failed to load events')
     const data = await res.json()
     eventLocations.value = data.map((event) => ({
@@ -123,7 +124,7 @@ loadEvents()
 const handleEventSubmit = async (newEvent) => {
   try {
     const token = await getAccessTokenSilently()
-    const res = await fetch('https://localhost:7236/api/Event', {
+    const res = await fetch(`${AppSettings.EventApi}/api/Event`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
@@ -268,7 +269,7 @@ function handleFilterChange(filters) {
 async function approveEvent(event) {
   try {
     const token = await getAccessTokenSilently()
-    const res = await fetch(`https://localhost:7236/api/Event/${event.id}`, {
+    const res = await fetch(`${AppSettings.EventApi}/api/Event/${event.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ status: 'approved' }),
@@ -289,7 +290,7 @@ async function approveEvent(event) {
 async function deleteEvent(event) {
   try {
     const token = await getAccessTokenSilently()
-    const res = await fetch(`https://localhost:7236/api/Event/${event.id}`, {
+    const res = await fetch(`${AppSettings.EventApi}/api/Event/${event.id}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     })

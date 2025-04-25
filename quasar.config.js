@@ -1,9 +1,15 @@
 // Configuration for your app
 // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file
 
+import * as dotenv from 'dotenv'
 import { defineConfig } from '#q-app/wrappers'
 
-export default defineConfig((/* ctx */) => {
+export default defineConfig(( ctx ) => {
+  //const envFile = ctx.dev ? '.env' : process.env.BUILD_ENV?.trim() === 'staging' ? '.env.staging' : '.env.production';
+  const envFile = '.env';
+  dotenv.config({path : envFile}).parsed,
+
+  console.log(`-----ENV file: ${envFile} -------------`)
   return {
     // https://v2.quasar.dev/quasar-cli-vite/prefetch-feature
     // preFetch: true,
@@ -44,9 +50,12 @@ export default defineConfig((/* ctx */) => {
 
       // rebuildCache: true, // rebuilds Vite/linter/etc cache on startup
 
-      // publicPath: '/',
+      publicPath: process.env.APP_BASE_PATH || '/',
       // analyze: true,
-      // env: {},
+      env: {
+        APP_BASE_PATH : process.env.APP_BASE_PATH,
+        EVENT_API : process.env.EVENT_API,
+      },
       // rawDefine: {}
       // ignorePublicFolder: true,
       // minify: false,
