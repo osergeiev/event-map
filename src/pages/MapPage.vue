@@ -123,7 +123,6 @@ loadEvents()
 const handleEventSubmit = async (newEvent) => {
   try {
     const token = await getAccessTokenSilently()
-    console.log(token)
     const res = await fetch('https://localhost:7236/api/Event', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
