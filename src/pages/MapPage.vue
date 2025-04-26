@@ -248,7 +248,6 @@ function handleFilterChange(filters) {
       eventData: event,
     })
 
-    console.log(event.status)
     const iconSrc =
       event.status === 'approved'
         ? 'https://openlayers.org/en/latest/examples/data/icon.png'
