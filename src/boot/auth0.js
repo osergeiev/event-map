@@ -7,8 +7,8 @@ export default async ({ app }) => {
       clientId: process.env.VUE_APP_AUTH0_CLIENT_ID,
       authorizationParams: {
         redirect_uri: window.location.origin,
+        audience: process.env.VUE_APP_AUTH0_AUDIENCE,
       },
-      audience: process.env.VUE_APP_AUTH0_AUDIENCE,
       useRefreshTokens: true,
     }),
   )

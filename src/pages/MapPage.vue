@@ -55,7 +55,7 @@ const handleUpdateEvent = async (updatedEvent) => {
     const token = await getAccessTokenSilently()
     const res = await fetch(`${AppSettings.EventApi}/api/Event/${updatedEvent.id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         EventName: updatedEvent.name,
         Description: updatedEvent.description,
@@ -126,7 +126,7 @@ const handleEventSubmit = async (newEvent) => {
     const token = await getAccessTokenSilently()
     const res = await fetch(`${AppSettings.EventApi}/api/Event`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         EventName: newEvent.name,
         Description: newEvent.description,
@@ -271,7 +271,7 @@ async function approveEvent(event) {
     const token = await getAccessTokenSilently()
     const res = await fetch(`${AppSettings.EventApi}/api/Event/${event.id}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: 'approved' }),
     })
     if (!res.ok) throw new Error('Failed to approve event')
