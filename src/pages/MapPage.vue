@@ -27,10 +27,7 @@ const vectorSource = ref(null)
 const userCoords = ref(null)
 const selectedCoords = ref(null)
 const eventLocations = ref([])
-const categories = computed(() => {
-  const allCategories = eventLocations.value.map((event) => event.category)
-  return [...new Set(allCategories)]
-})
+const categories = ref([])
 const activePopups = new Set()
 const roles = computed(() => {
   const claims = idTokenClaims.value
@@ -98,6 +95,20 @@ function haversineDistance(coords1, coords2) {
   console.log('Distance:', R * c, 'km')
   return R * c
 }
+
+async function loadCategories() {
+  try {
+    const res = await fetch(`${AppSettings.EventApi}/api/Category`, {})
+    if (!res.ok) throw new Error('Failed to load events')
+    const data = await res.json()
+    categories.value = data.map((category) => category.categoryName)
+    console.log('Categories:', categories.value)
+  } catch (error) {
+    console.error('Error loading events:', error)
+  }
+}
+
+loadCategories()
 
 async function loadEvents() {
   try {
