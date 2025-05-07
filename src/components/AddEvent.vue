@@ -16,7 +16,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['event-submitted'])
+const emit = defineEmits(['event-submitted', 'delete-tmp'])
 
 const eventCategory = ref('')
 const eventName = ref('')
@@ -39,6 +39,7 @@ const useCurrentLocation = () => {
     errorMessage.value = 'Please enable location tracking first'
     return
   }
+  emit('delete-tmp')
   eventCoords.value = props.userCoords
   errorMessage.value = ''
 }

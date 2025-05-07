@@ -638,6 +638,7 @@ onMounted(() => {
           :categories="categories"
           :user-coords="userCoords"
           :selected-coords="selectedCoords"
+          @delete-tmp="deleteMarker"
           @event-submitted="handleEventSubmit"
         />
       </div>
