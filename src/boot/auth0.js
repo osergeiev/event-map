@@ -10,6 +10,7 @@ export default async ({ app }) => {
         audience: process.env.VUE_APP_AUTH0_AUDIENCE,
       },
       useRefreshTokens: true,
+      cacheLocation: 'localstorage',
     }),
   )
 }

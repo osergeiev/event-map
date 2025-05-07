@@ -25,7 +25,8 @@ import { fromLonLat } from 'ol/proj'
 const emit = defineEmits(['location-found', 'location-error'])
 
 const isLocating = ref(false)
-const isTracking = ref(false)
+const userCoords = localStorage.getItem('userCoords')
+const isTracking = ref(!!userCoords) // Set to true if userCoords exists, otherwise false
 const locationError = ref('')
 const watchId = ref(null)
 

@@ -27,10 +27,7 @@ const vectorSource = ref(null)
 const userCoords = ref(null)
 const selectedCoords = ref(null)
 const eventLocations = ref([])
-const categories = computed(() => {
-  const allCategories = eventLocations.value.map((event) => event.category)
-  return [...new Set(allCategories)]
-})
+const categories = ref([])
 const activePopups = new Set()
 const roles = computed(() => {
   const claims = idTokenClaims.value
@@ -39,7 +36,6 @@ const roles = computed(() => {
 
 const editEventDialog = ref(false)
 const currentEventToEdit = ref(null)
-const mapClickEnabled = ref(false)
 
 const openEditDialog = (event) => {
   editEventDialog.value = false
@@ -47,6 +43,19 @@ const openEditDialog = (event) => {
   nextTick(() => {
     currentEventToEdit.value = { ...event }
     editEventDialog.value = true
+    vectorSource.value.getFeatures().forEach((feature) => {
+      if (feature.get('type') === 'temporary') {
+        vectorSource.value.removeFeature(feature)
+      }
+    })
+  })
+}
+
+const deleteMarker = () => {
+  vectorSource.value.getFeatures().forEach((feature) => {
+    if (feature.get('type') === 'temporary') {
+      vectorSource.value.removeFeature(feature)
+    }
   })
 }
 
@@ -95,9 +104,21 @@ function haversineDistance(coords1, coords2) {
       Math.sin(dLon / 2) *
       Math.sin(dLon / 2)
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-  console.log('Distance:', R * c, 'km')
   return R * c
 }
+
+async function loadCategories() {
+  try {
+    const res = await fetch(`${AppSettings.EventApi}/api/Category`, {})
+    if (!res.ok) throw new Error('Failed to load events')
+    const data = await res.json()
+    categories.value = data.map((category) => category.categoryName)
+  } catch (error) {
+    console.error('Error loading events:', error)
+  }
+}
+
+loadCategories()
 
 async function loadEvents() {
   try {
@@ -161,16 +182,27 @@ function addMarker(event) {
     geometry: new Point(fromLonLat(event.coords)),
     eventData: event,
   })
-  const iconSrc =
-    event.status === 'approved'
-      ? 'https://openlayers.org/en/latest/examples/data/icon.png'
-      : 'https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-red.png'
+  var iconSrc = '/icons/red.png'
+  if (event.status === 'approved' && event.category === 'Traffic & Accidents') {
+    iconSrc = '/icons/traffic.png'
+  } else if (event.status === 'approved' && event.category === 'Emergencies & Hazards') {
+    iconSrc = '/icons/emergency.png'
+  } else if (event.status === 'approved' && event.category === 'Crime & Security') {
+    iconSrc = '/icons/crime.png'
+  } else if (
+    event.status === 'approved' &&
+    event.category === 'Public Gatherings & Social Events'
+  ) {
+    iconSrc = '/icons/event.png'
+  } else if (event.status === 'approved' && event.category === 'Community & Miscellaneous') {
+    iconSrc = '/icons/community.png'
+  }
 
   marker.setStyle(
     new Style({
       image: new Icon({
         src: iconSrc,
-        scale: 0.8,
+        scale: 0.07,
         anchor: [0.5, 1],
       }),
     }),
@@ -183,8 +215,16 @@ function toggleLeftDrawer() {
 }
 
 function selectComponent(component) {
+  if (component === 'AddEvent' && editEventDialog.value) {
+    return
+  }
   selectedComponent.value = component
   selectedCoords.value = null
+  vectorSource.value.getFeatures().forEach((feature) => {
+    if (feature.get('type') === 'temporary') {
+      vectorSource.value.removeFeature(feature)
+    }
+  })
 }
 
 const userLocationSource = new VectorSource()
@@ -192,8 +232,8 @@ const userLocationLayer = new VectorLayer({
   source: userLocationSource,
   style: new Style({
     image: new Icon({
-      src: 'https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-blue.png',
-      scale: 0.7,
+      src: '/icons/blue.png',
+      scale: 0.06,
       anchor: [0.5, 1],
     }),
   }),
@@ -205,6 +245,8 @@ const handleLocationFound = (projectedCoords) => {
     const wgs84Coords = toLonLat(projectedCoords)
     userCoords.value = wgs84Coords
 
+    localStorage.setItem('userCoords', JSON.stringify(wgs84Coords))
+
     const feature = new Feature(new Point(projectedCoords))
     userLocationSource.addFeature(feature)
 
@@ -215,6 +257,7 @@ const handleLocationFound = (projectedCoords) => {
     })
   } else {
     userCoords.value = null
+    localStorage.removeItem('userCoords')
   }
 }
 
@@ -248,15 +291,26 @@ function handleFilterChange(filters) {
       eventData: event,
     })
 
-    const iconSrc =
-      event.status === 'approved'
-        ? 'https://openlayers.org/en/latest/examples/data/icon.png'
-        : 'https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-red.png'
+    var iconSrc = '/icons/red.png'
+    if (event.status === 'approved' && event.category === 'Traffic & Accidents') {
+      iconSrc = '/icons/traffic.png'
+    } else if (event.status === 'approved' && event.category === 'Emergencies & Hazards') {
+      iconSrc = '/icons/emergency.png'
+    } else if (event.status === 'approved' && event.category === 'Crime & Security') {
+      iconSrc = '/icons/crime.png'
+    } else if (
+      event.status === 'approved' &&
+      event.category === 'Public Gatherings & Social Events'
+    ) {
+      iconSrc = '/icons/event.png'
+    } else if (event.status === 'approved' && event.category === 'Community & Miscellaneous') {
+      iconSrc = '/icons/community.png'
+    }
     marker.setStyle(
       new Style({
         image: new Icon({
           src: iconSrc,
-          scale: 0.8,
+          scale: 0.07,
           anchor: [0.5, 1],
         }),
       }),
@@ -309,17 +363,27 @@ function refreshMarkers() {
       geometry: new Point(fromLonLat(event.coords)),
       eventData: event,
     })
-
-    const iconSrc =
-      event.status === 'approved'
-        ? 'https://openlayers.org/en/latest/examples/data/icon.png'
-        : 'https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-red.png'
+    var iconSrc = '/icons/red.png'
+    if (event.status === 'approved' && event.category === 'Traffic & Accidents') {
+      iconSrc = '/icons/traffic.png'
+    } else if (event.status === 'approved' && event.category === 'Emergencies & Hazards') {
+      iconSrc = '/icons/emergency.png'
+    } else if (event.status === 'approved' && event.category === 'Crime & Security') {
+      iconSrc = '/icons/crime.png'
+    } else if (
+      event.status === 'approved' &&
+      event.category === 'Public Gatherings & Social Events'
+    ) {
+      iconSrc = '/icons/event.png'
+    } else if (event.status === 'approved' && event.category === 'Community & Miscellaneous') {
+      iconSrc = '/icons/community.png'
+    }
 
     marker.setStyle(
       new Style({
         image: new Icon({
           src: iconSrc,
-          scale: 0.8,
+          scale: 0.07,
           anchor: [0.5, 1],
         }),
       }),
@@ -330,13 +394,8 @@ function refreshMarkers() {
 
 function formatDateTime(dateTimeString) {
   const date = new Date(dateTimeString)
-
-  // Format time (HH:mm) in 24-hour format
   const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
-
-  // Format date (DD/MM/YYYY)
-  const formattedDate = date.toLocaleDateString('en-GB') // 'en-GB' ensures DD/MM/YYYY format
-
+  const formattedDate = date.toLocaleDateString('en-GB')
   return `${time} ${formattedDate}`
 }
 
@@ -349,16 +408,27 @@ onMounted(() => {
       eventData: event,
     })
 
-    const iconSrc =
-      event.status === 'approved'
-        ? 'https://openlayers.org/en/latest/examples/data/icon.png' // Approved marker
-        : 'https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-red.png'
+    var iconSrc = '/icons/red.png'
+    if (event.status === 'approved' && event.category === 'Traffic & Accidents') {
+      iconSrc = '/icons/traffic.png'
+    } else if (event.status === 'approved' && event.category === 'Emergencies & Hazards') {
+      iconSrc = '/icons/emergency.png'
+    } else if (event.status === 'approved' && event.category === 'Crime & Security') {
+      iconSrc = '/icons/crime.png'
+    } else if (
+      event.status === 'approved' &&
+      event.category === 'Public Gatherings & Social Events'
+    ) {
+      iconSrc = '/icons/event.png'
+    } else if (event.status === 'approved' && event.category === 'Community & Miscellaneous') {
+      iconSrc = '/icons/community.png'
+    }
 
     marker.setStyle(
       new Style({
         image: new Icon({
           src: iconSrc,
-          scale: 0.8,
+          scale: 0.07,
           anchor: [0.5, 1],
         }),
       }),
@@ -379,16 +449,43 @@ onMounted(() => {
     }),
   })
 
+  const savedCoords = localStorage.getItem('userCoords')
+  if (savedCoords) {
+    const coords = JSON.parse(savedCoords)
+    userCoords.value = coords
+
+    const projectedCoords = fromLonLat(coords)
+    const feature = new Feature(new Point(projectedCoords))
+    userLocationSource.addFeature(feature)
+  }
+
   map.on('click', (evt) => {
-    if (mapClickEnabled.value) {
+    if (selectedComponent.value === 'AddEvent' || editEventDialog.value) {
       const coords = toLonLat(evt.coordinate)
       selectedCoords.value = coords
-      mapClickEnabled.value = false
-      return
-    }
-    if (selectedComponent.value === 'AddEvent') {
-      const coords = toLonLat(evt.coordinate)
-      selectedCoords.value = coords
+
+      const tempMarker = new Feature({
+        geometry: new Point(evt.coordinate),
+        type: 'temporary',
+      })
+
+      tempMarker.setStyle(
+        new Style({
+          image: new Icon({
+            src: '/icons/orange.png',
+            scale: 0.07,
+            anchor: [0.5, 1],
+          }),
+        }),
+      )
+
+      vectorSource.value.getFeatures().forEach((feature) => {
+        if (feature.get('type') === 'temporary') {
+          vectorSource.value.removeFeature(feature)
+        }
+      })
+
+      vectorSource.value.addFeature(tempMarker)
       return
     }
     const feature = map.forEachFeatureAtPixel(evt.pixel, (f) => f)
@@ -503,18 +600,36 @@ onMounted(() => {
       :event="currentEventToEdit"
       :categories="categories"
       :selected-coords="selectedCoords"
-      :map-click-enabled="mapClickEnabled"
       @update-event="handleUpdateEvent"
-      @update:mapClickEnabled="(val) => (mapClickEnabled = val)"
+      @close="editEventDialog = false"
+      @delete-marker="deleteMarker"
     />
     <q-drawer v-model="leftDrawerOpen" show-if-above bordered>
       <q-list>
         <q-item-label header>Menu</q-item-label>
+
         <q-item v-if="isAuthenticated" clickable @click="selectComponent('AddEvent')">
-          <q-item-section>Add Events</q-item-section>
+          <q-item-section :class="{ 'text-red': editEventDialog }">Add Events</q-item-section>
+
+          <q-btn
+            v-if="selectedComponent === 'AddEvent'"
+            flat
+            round
+            dense
+            icon="close"
+            @click.stop="selectComponent(null)"
+          ></q-btn>
         </q-item>
         <q-item clickable @click="selectComponent('FilterEvents')">
           <q-item-section>Filter Events</q-item-section>
+          <q-btn
+            v-if="selectedComponent === 'FilterEvents'"
+            flat
+            round
+            dense
+            icon="close"
+            @click.stop="selectComponent(null)"
+          ></q-btn>
         </q-item>
       </q-list>
 
@@ -647,5 +762,9 @@ onMounted(() => {
 
 .approve-btn + .delete-btn {
   margin-left: 4px;
+}
+
+.text-red {
+  color: red;
 }
 </style>
