@@ -1,6 +1,6 @@
 <template>
-  <q-dialog v-model="showDialog">
-    <q-card class="q-pa-md" style="width: 400px">
+  <q-dialog seamless v-model="showDialog">
+    <q-card style="width: 400px" class="edit-event-container q-pa-md">
       <q-card-section>
         <h6 class="q-mt-none">Edit Event</h6>
 
@@ -34,15 +34,6 @@
         />
 
         <div class="q-mb-sm">
-          <div class="text-caption q-mb-sm">Location selection:</div>
-          <q-btn
-            label="Select New Location"
-            color="primary"
-            outline
-            dense
-            class="q-mr-sm"
-            @click="enableMapClick"
-          />
           <div v-if="editedEvent.coords" class="q-mt-sm">
             Current coordinates:<br />
             {{ editedEvent.coords[1].toFixed(6) }}, {{ editedEvent.coords[0].toFixed(6) }}
@@ -67,22 +58,18 @@ const props = defineProps({
   event: Object,
   categories: Array,
   selectedCoords: Array,
-  mapClickEnabled: Boolean,
 })
-const emit = defineEmits(['update-event', 'update:mapClickEnabled'])
+const emit = defineEmits(['update-event', 'close', 'delete-marker'])
 
 const showDialog = ref(true)
 const errorMessage = ref('')
 const editedEvent = ref({ ...props.event })
 const statusOptions = ['approved', 'unapproved']
 
-const enableMapClick = () => {
-  emit('update:mapClickEnabled', true)
-}
-
 const closeDialog = () => {
-  emit('update:mapClickEnabled', false)
   showDialog.value = false
+  emit('close')
+  emit('delete-marker')
 }
 
 const handleSubmit = () => {
@@ -109,3 +96,15 @@ watch(
   },
 )
 </script>
+
+<style scoped>
+.edit-event-container {
+  position: fixed;
+  top: 70px;
+  right: 20px;
+  z-index: 6000;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+}
+</style>
