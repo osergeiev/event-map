@@ -462,7 +462,11 @@ onMounted(() => {
   }
 
   map.on('click', (evt) => {
-    if (['AddEvent', 'EmailSubscription'].includes(selectedComponent.value)) {
+    if (
+      selectedComponent.value === 'AddEvent' ||
+      editEventDialog.value ||
+      selectedComponent.value === 'EmailSubscription'
+    ) {
       const coords = toLonLat(evt.coordinate)
       selectedCoords.value = coords
 

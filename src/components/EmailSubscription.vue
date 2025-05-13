@@ -4,7 +4,7 @@ import { useAuth0 } from '@auth0/auth0-vue'
 import AppSettings from 'src/settings.js'
 
 const { user, isAuthenticated, getAccessTokenSilently } = useAuth0()
-var exist = false
+const exist = ref(false)
 const clearLocation = () => {
   formData.value.latitude = null
   formData.value.longitude = null
@@ -76,7 +76,7 @@ async function loadSavedPreferences() {
       },
     })
     if (res.ok) {
-      exist = true
+      exist.value = true
       const data = await res.json()
       formData.value = { ...data }
     }
@@ -100,7 +100,7 @@ const handleSubmit = async () => {
   try {
     const token = await getAccessTokenSilently()
     var res
-    if (!exist) {
+    if (!exist.value) {
       res = await fetch(`${AppSettings.EventApi}/api/User`, {
         method: 'POST',
         headers: {
@@ -117,6 +117,7 @@ const handleSubmit = async () => {
           description: formData.value.description,
         }),
       })
+      exist.value = true
     } else {
       res = await fetch(`${AppSettings.EventApi}/api/User/${formData.value.email}`, {
         method: 'PUT',
@@ -160,7 +161,7 @@ const handleUnsubscribe = async () => {
 
     if (!res.ok) throw new Error('Failed to unsubscribe')
 
-    exist = false
+    exist.value = false
     formData.value = {
       category: null,
       name: null,
@@ -264,13 +265,7 @@ const handleUnsubscribe = async () => {
 
     <div v-if="errorMessage" class="text-negative q-mb-sm">{{ errorMessage }}</div>
 
-    <q-btn
-      label="Save Preferences"
-      color="primary"
-      class="full-width"
-      @click="handleSubmit"
-      :loading="isLoading"
-    />
+    <q-btn label="Save Preferences" color="primary" class="full-width" @click="handleSubmit" />
     <div class="q-mt-md">
       <q-btn
         v-if="exist"
@@ -278,7 +273,6 @@ const handleUnsubscribe = async () => {
         color="negative"
         class="full-width"
         @click="handleUnsubscribe"
-        :loading="isLoading"
       />
     </div>
   </div>
