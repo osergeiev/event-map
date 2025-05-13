@@ -66,8 +66,15 @@ watch(
 
 async function loadSavedPreferences() {
   try {
+    const token = await getAccessTokenSilently()
     isLoading.value = true
-    const res = await fetch(`${AppSettings.EventApi}/api/User/${formData.value.email}`)
+    const res = await fetch(`${AppSettings.EventApi}/api/User/${formData.value.email}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    })
     if (res.ok) {
       exist = true
       const data = await res.json()
@@ -136,6 +143,37 @@ const handleSubmit = async () => {
   } catch (error) {
     console.error('Error saving preferences:', error)
     errorMessage.value = 'Failed to save preferences'
+  }
+}
+
+const handleUnsubscribe = async () => {
+  try {
+    if (!confirm('Are you sure you want to unsubscribe and delete all preferences?')) return
+
+    const token = await getAccessTokenSilently()
+    const res = await fetch(`${AppSettings.EventApi}/api/User/${formData.value.email}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    if (!res.ok) throw new Error('Failed to unsubscribe')
+
+    exist = false
+    formData.value = {
+      category: null,
+      name: null,
+      description: null,
+      distance: null,
+      email: isAuthenticated.value ? user.value.email : '',
+      latitude: null,
+      longitude: null,
+    }
+    alert('Successfully unsubscribed!')
+  } catch (error) {
+    console.error('Error unsubscribing:', error)
+    errorMessage.value = 'Failed to unsubscribe'
   }
 }
 </script>
@@ -233,5 +271,15 @@ const handleSubmit = async () => {
       @click="handleSubmit"
       :loading="isLoading"
     />
+    <div class="q-mt-md">
+      <q-btn
+        v-if="exist"
+        label="Unsubscribe"
+        color="negative"
+        class="full-width"
+        @click="handleUnsubscribe"
+        :loading="isLoading"
+      />
+    </div>
   </div>
 </template>
