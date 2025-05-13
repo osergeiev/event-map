@@ -4,6 +4,11 @@ import { useAuth0 } from '@auth0/auth0-vue'
 import AppSettings from 'src/settings.js'
 
 const { user, isAuthenticated, getAccessTokenSilently } = useAuth0()
+var exist = false
+const clearLocation = () => {
+  formData.value.latitude = null
+  formData.value.longitude = null
+}
 
 const props = defineProps({
   categories: {
@@ -64,6 +69,7 @@ async function loadSavedPreferences() {
     isLoading.value = true
     const res = await fetch(`${AppSettings.EventApi}/api/User/${formData.value.email}`)
     if (res.ok) {
+      exist = true
       const data = await res.json()
       formData.value = { ...data }
     }
@@ -85,28 +91,43 @@ const useCurrentLocation = () => {
 
 const handleSubmit = async () => {
   try {
-    if (!formData.value.email) {
-      errorMessage.value = 'Email is required'
-      return
-    }
-
     const token = await getAccessTokenSilently()
-    const res = await fetch(`${AppSettings.EventApi}/api/User/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        email: formData.value.email,
-        category: formData.value.category,
-        nameFilter: formData.value.name,
-        descriptionFilter: formData.value.description,
-        maxDistance: formData.value.distance,
-        latitude: formData.value.latitude,
-        longitude: formData.value.longitude,
-      }),
-    })
+    var res
+    if (!exist) {
+      res = await fetch(`${AppSettings.EventApi}/api/User`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          email: user.value.email,
+          categoryName: formData.value.categoryName,
+          longitude: formData.value.longitude,
+          latitude: formData.value.latitude,
+          distance: formData.value.distance?.value,
+          name: formData.value.name,
+          description: formData.value.description,
+        }),
+      })
+    } else {
+      res = await fetch(`${AppSettings.EventApi}/api/User/${formData.value.email}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          email: formData.value.email,
+          categoryName: formData.value.categoryName,
+          longitude: formData.value.longitude,
+          latitude: formData.value.latitude,
+          distance: formData.value.distance?.value,
+          name: formData.value.name,
+          description: formData.value.description,
+        }),
+      })
+    }
 
     if (!res.ok) throw new Error('Failed to save preferences')
 
@@ -121,7 +142,7 @@ const handleSubmit = async () => {
 
 <template>
   <div class="q-pa-md">
-    <h5 class="q-mt-none">Email Notifications Setup</h5>
+    <h5 class="q-mt-none">Email Subscriptions</h5>
 
     <q-input
       v-model="formData.email"
@@ -133,13 +154,15 @@ const handleSubmit = async () => {
     />
 
     <q-select
-      v-model="formData.category"
+      v-model="formData.categoryName"
       :options="categories"
       label="Category"
       outlined
       dense
       class="q-mb-sm"
-    />
+      clearable
+    >
+    </q-select>
 
     <q-input
       v-model="formData.name"
@@ -161,15 +184,24 @@ const handleSubmit = async () => {
 
     <div class="q-mb-sm">
       <div class="text-caption q-mb-sm">Location selection:</div>
-      <q-btn
-        label="Use Current Location"
-        color="primary"
-        outline
-        dense
-        class="q-mr-sm"
-        @click="useCurrentLocation"
-        :disable="!userCoords"
-      />
+      <div class="row items-center q-gutter-sm">
+        <q-btn
+          label="Use Current Location"
+          color="primary"
+          outline
+          dense
+          @click="useCurrentLocation"
+          :disable="!userCoords"
+        />
+        <q-btn
+          label="Clear Location"
+          color="negative"
+          outline
+          dense
+          @click="clearLocation"
+          :disable="!formData.latitude || !formData.longitude"
+        />
+      </div>
       <div v-if="formData.latitude && formData.longitude" class="q-mt-sm">
         Selected coordinates:<br />
         {{ formData.latitude.toFixed(6) }}, {{ formData.longitude.toFixed(6) }}
@@ -180,7 +212,7 @@ const handleSubmit = async () => {
     <q-select
       v-model="formData.distance"
       :options="distanceOptions"
-      label="Max distance"
+      label="Distance"
       option-label="label"
       option-value="value"
       outlined
@@ -188,7 +220,9 @@ const handleSubmit = async () => {
       class="q-mb-sm"
       :disable="!formData.latitude || !formData.longitude"
       hint="Requires location selection"
-    />
+      clearable
+    >
+    </q-select>
 
     <div v-if="errorMessage" class="text-negative q-mb-sm">{{ errorMessage }}</div>
 
