@@ -3,6 +3,7 @@ import { ref, onMounted, computed, nextTick } from 'vue'
 import LocateMe from '../components/LocateMe.vue'
 import AddEvent from '../components/AddEvent.vue'
 import FilterEvents from '../components/FilterEvents.vue'
+import EmailSubscription from '../components/EmailSubscription.vue'
 import LogIn from '../components/LogIn.vue'
 import LogOut from '../components/LogOut.vue'
 import EditEvent from '../components/EditEvent.vue'
@@ -72,6 +73,7 @@ const handleUpdateEvent = async (updatedEvent) => {
         Status: updatedEvent.status,
         Longitude: updatedEvent.coords[0],
         Latitude: updatedEvent.coords[1],
+        Email: user.value.email,
       }),
     })
 
@@ -141,7 +143,6 @@ async function loadEvents() {
 }
 
 loadEvents()
-
 const handleEventSubmit = async (newEvent) => {
   try {
     const token = await getAccessTokenSilently()
@@ -154,6 +155,7 @@ const handleEventSubmit = async (newEvent) => {
         CategoryName: newEvent.category,
         Longitude: newEvent.coords[0],
         Latitude: newEvent.coords[1],
+        Email: user.value.email,
       }),
     })
     if (!res.ok) throw new Error('Failed to create event')
@@ -460,7 +462,11 @@ onMounted(() => {
   }
 
   map.on('click', (evt) => {
-    if (selectedComponent.value === 'AddEvent' || editEventDialog.value) {
+    if (
+      selectedComponent.value === 'AddEvent' ||
+      editEventDialog.value ||
+      selectedComponent.value === 'EmailSubscription'
+    ) {
       const coords = toLonLat(evt.coordinate)
       selectedCoords.value = coords
 
@@ -631,6 +637,17 @@ onMounted(() => {
             @click.stop="selectComponent(null)"
           ></q-btn>
         </q-item>
+        <q-item clickable @click="selectComponent('EmailSubscription')">
+          <q-item-section>Email Notifications</q-item-section>
+          <q-btn
+            v-if="selectedComponent === 'EmailSubscription'"
+            flat
+            round
+            dense
+            icon="close"
+            @click.stop="selectComponent(null)"
+          ></q-btn>
+        </q-item>
       </q-list>
 
       <div v-if="selectedComponent === 'AddEvent'" class="drawer-content">
@@ -638,6 +655,7 @@ onMounted(() => {
           :categories="categories"
           :user-coords="userCoords"
           :selected-coords="selectedCoords"
+          @delete-tmp="deleteMarker"
           @event-submitted="handleEventSubmit"
         />
       </div>
@@ -646,6 +664,15 @@ onMounted(() => {
           :categories="categories"
           @filter-change="handleFilterChange"
           :location-available="!!userCoords"
+        />
+      </div>
+      <div v-else-if="selectedComponent === 'EmailSubscription'" class="drawer-content">
+        <EmailSubscription
+          :categories="categories"
+          :user-coords="userCoords"
+          :selected-coords="selectedCoords"
+          @update:selectedCoords="(val) => (selectedCoords = val)"
+          @use-current-location="handleLocationFound"
         />
       </div>
     </q-drawer>
