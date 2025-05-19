@@ -1,4 +1,6 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
 import { ref, onMounted, watch } from 'vue'
 import { useAuth0 } from '@auth0/auth0-vue'
 import AppSettings from 'src/settings.js'
@@ -89,7 +91,7 @@ async function loadSavedPreferences() {
 
 const useCurrentLocation = () => {
   if (!props.userCoords) {
-    errorMessage.value = 'Please enable location tracking first'
+    errorMessage.value = t('app.enableLocationFirst')
     return
   }
   formData.value.latitude = props.userCoords[1]
@@ -181,11 +183,11 @@ const handleUnsubscribe = async () => {
 
 <template>
   <div class="q-pa-md">
-    <h5 class="q-mt-none">Email Subscriptions</h5>
+    <h5 class="q-mt-none">{{ $t('app.emailSubscriptions') }}</h5>
 
     <q-input
       v-model="formData.email"
-      label="Email *"
+      :label="$t('app.email') + ' *'"
       outlined
       dense
       class="q-mb-sm"
@@ -195,7 +197,7 @@ const handleUnsubscribe = async () => {
     <q-select
       v-model="formData.categoryName"
       :options="categories"
-      label="Category"
+      :label="$t('app.category')"
       outlined
       dense
       class="q-mb-sm"
@@ -205,7 +207,7 @@ const handleUnsubscribe = async () => {
 
     <q-input
       v-model="formData.name"
-      label="Name contains"
+      :label="$t('app.nameContains')"
       outlined
       dense
       clearable
@@ -214,7 +216,7 @@ const handleUnsubscribe = async () => {
 
     <q-input
       v-model="formData.description"
-      label="Description contains"
+      :label="$t('app.descriptionContains')"
       outlined
       dense
       clearable
@@ -222,10 +224,10 @@ const handleUnsubscribe = async () => {
     />
 
     <div class="q-mb-sm">
-      <div class="text-caption q-mb-sm">Location selection:</div>
+      <div class="text-caption q-mb-sm">{{ $t('app.locationSelection') }}:</div>
       <div class="row items-center q-gutter-sm">
         <q-btn
-          label="Use Current Location"
+          :label="$t('app.useCurrentLocation')"
           color="primary"
           outline
           dense
@@ -233,7 +235,7 @@ const handleUnsubscribe = async () => {
           :disable="!userCoords"
         />
         <q-btn
-          label="Clear Location"
+          :label="$t('app.clearLocation')"
           color="negative"
           outline
           dense
@@ -242,34 +244,39 @@ const handleUnsubscribe = async () => {
         />
       </div>
       <div v-if="formData.latitude && formData.longitude" class="q-mt-sm">
-        Selected coordinates:<br />
+        {{ $t('app.selectedCoordinates') }}:<br />
         {{ formData.latitude.toFixed(6) }}, {{ formData.longitude.toFixed(6) }}
       </div>
-      <div v-else class="text-caption q-mt-sm">Click anywhere on the map to select location</div>
+      <div v-else class="text-caption q-mt-sm">{{ $t('app.clickToSelect') }}</div>
     </div>
 
     <q-select
       v-model="formData.distance"
       :options="distanceOptions"
-      label="Distance"
+      :label="$t('app.distance')"
       option-label="label"
       option-value="value"
       outlined
       dense
       class="q-mb-sm"
       :disable="!formData.latitude || !formData.longitude"
-      hint="Requires location selection"
+      :hint="$t('app.locationSelectionRequired')"
       clearable
     >
     </q-select>
 
     <div v-if="errorMessage" class="text-negative q-mb-sm">{{ errorMessage }}</div>
 
-    <q-btn label="Save Preferences" color="primary" class="full-width" @click="handleSubmit" />
+    <q-btn
+      :label="$t('app.savePreferences')"
+      color="primary"
+      class="full-width"
+      @click="handleSubmit"
+    />
     <div class="q-mt-md">
       <q-btn
         v-if="exist"
-        label="Unsubscribe"
+        :label="$t('app.unsubscribe')"
         color="negative"
         class="full-width"
         @click="handleUnsubscribe"

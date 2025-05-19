@@ -2,22 +2,28 @@
   <q-dialog seamless v-model="showDialog">
     <q-card style="width: 400px" class="edit-event-container q-pa-md">
       <q-card-section>
-        <h6 class="q-mt-none">Edit Event</h6>
+        <h6 class="q-mt-none">{{ $t('app.editEvent') }}</h6>
 
         <q-select
           v-model="editedEvent.category"
           :options="categories"
-          label="Category *"
+          :label="$t('app.category') + ' *'"
           outlined
           dense
           class="q-mb-sm"
         />
 
-        <q-input v-model="editedEvent.name" label="Event Name *" outlined dense class="q-mb-sm" />
+        <q-input
+          v-model="editedEvent.name"
+          :label="$t('app.eventName') + ' *'"
+          outlined
+          dense
+          class="q-mb-sm"
+        />
 
         <q-input
           v-model="editedEvent.description"
-          label="Description *"
+          :label="$t('app.description') + ' *'"
           outlined
           dense
           type="textarea"
@@ -27,7 +33,7 @@
         <q-select
           v-model="editedEvent.status"
           :options="statusOptions"
-          label="Status *"
+          :label="t('app.status') + ' *'"
           outlined
           dense
           class="q-mb-sm"
@@ -35,7 +41,7 @@
 
         <div class="q-mb-sm">
           <div v-if="editedEvent.coords" class="q-mt-sm">
-            Current coordinates:<br />
+            {{ $t('app.currentCoordinates') }}:<br />
             {{ editedEvent.coords[1].toFixed(6) }}, {{ editedEvent.coords[0].toFixed(6) }}
           </div>
         </div>
@@ -43,8 +49,8 @@
         <div v-if="errorMessage" class="text-negative q-mb-sm">{{ errorMessage }}</div>
 
         <div class="row q-gutter-sm">
-          <q-btn label="Cancel" color="negative" @click="closeDialog" />
-          <q-btn label="Save Changes" color="positive" @click="handleSubmit" />
+          <q-btn :label="$t('app.cancel')" color="negative" @click="closeDialog" />
+          <q-btn :label="$t('app.saveChanges')" color="positive" @click="handleSubmit" />
         </div>
       </q-card-section>
     </q-card>
@@ -52,6 +58,8 @@
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
 import { ref, watch } from 'vue'
 
 const props = defineProps({
@@ -74,12 +82,12 @@ const closeDialog = () => {
 
 const handleSubmit = () => {
   if (!editedEvent.value.name || !editedEvent.value.description || !editedEvent.value.category) {
-    errorMessage.value = 'Required fields are missing'
+    errorMessage.value = t('app.allFieldsRequired')
     return
   }
 
   if (!editedEvent.value.coords) {
-    errorMessage.value = 'Location is required'
+    errorMessage.value = t('app.locationRequired')
     return
   }
 

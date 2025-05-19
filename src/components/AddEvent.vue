@@ -1,4 +1,6 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
 import { ref, watch } from 'vue'
 
 const props = defineProps({
@@ -36,7 +38,7 @@ watch(
 
 const useCurrentLocation = () => {
   if (!props.userCoords) {
-    errorMessage.value = 'Please enable location tracking first'
+    errorMessage.value = t('app.userLocationSelectionRequired')
     return
   }
   emit('delete-tmp')
@@ -46,13 +48,12 @@ const useCurrentLocation = () => {
 
 const handleSubmit = () => {
   if (!eventCategory.value || !eventName.value || !eventDescription.value) {
-    errorMessage.value = 'All fields are required'
+    errorMessage.value = t('app.allFieldsRequired')
     return
   }
 
   if (!eventCoords.value) {
-    errorMessage.value =
-      'Please select a location by clicking the map or using your current location'
+    errorMessage.value = t('app.locationRequired')
     return
   }
 
@@ -74,19 +75,25 @@ const handleSubmit = () => {
 
 <template>
   <div class="q-pa-md">
-    <h5 class="q-mt-none">Add New Event</h5>
+    <h5 class="q-mt-none">{{ $t('app.addEvent') }}</h5>
     <q-select
       v-model="eventCategory"
       :options="categories"
-      label="Category *"
+      :label="$t('app.category') + ' *'"
       outlined
       dense
       class="q-mb-sm"
     />
-    <q-input v-model="eventName" label="Event Name *" outlined dense class="q-mb-sm" />
+    <q-input
+      v-model="eventName"
+      :label="$t('app.eventName') + ' *'"
+      outlined
+      dense
+      class="q-mb-sm"
+    />
     <q-input
       v-model="eventDescription"
-      label="Description *"
+      :label="$t('app.description') + ' *'"
       outlined
       dense
       type="textarea"
@@ -94,9 +101,9 @@ const handleSubmit = () => {
     />
 
     <div class="q-mb-sm">
-      <div class="text-caption q-mb-sm">Location selection:</div>
+      <div class="text-caption q-mb-sm">{{ $t('app.locationSelection') }}:</div>
       <q-btn
-        label="Use Current Location"
+        :label="$t('app.useCurrentLocation')"
         color="primary"
         outline
         dense
@@ -104,14 +111,14 @@ const handleSubmit = () => {
         @click="useCurrentLocation"
       />
       <div v-if="eventCoords" class="q-mt-sm">
-        Selected coordinates:<br />
+        {{ $t('app.selectedCoordinates') }}:<br />
         {{ eventCoords[1].toFixed(6) }}, {{ eventCoords[0].toFixed(6) }}
       </div>
-      <div v-else class="text-caption q-mt-sm">Click anywhere on the map to select location</div>
+      <div v-else class="text-caption q-mt-sm">{{ $t('app.clickToSelect') }}</div>
     </div>
 
     <div v-if="errorMessage" class="text-negative q-mb-sm">{{ errorMessage }}</div>
 
-    <q-btn label="Add Event" color="primary" class="full-width" @click="handleSubmit" />
+    <q-btn :label="$t('app.addEvent')" color="primary" class="full-width" @click="handleSubmit" />
   </div>
 </template>

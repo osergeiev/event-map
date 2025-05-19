@@ -591,7 +591,21 @@ onMounted(() => {
     <q-header elevated>
       <q-toolbar>
         <q-btn flat dense round icon="menu" aria-label="Menu" @click="toggleLeftDrawer" />
-        <q-toolbar-title>Interactive Event Map</q-toolbar-title>
+        <q-toolbar-title>{{ $t('app.title') }}</q-toolbar-title>
+        <q-select
+          v-model="$i18n.locale"
+          :options="[
+            { label: 'English', value: 'en-US', flag: 'gb' },
+            { label: 'Hrvatski', value: 'hr-HR', flag: 'hr' },
+            { label: 'Українська', value: 'uk-UA', flag: 'ua' },
+          ]"
+          borderless
+          emit-value
+          map-options
+          options-dense
+          bg-color="primary"
+          class="language-selector"
+        />
         <LocateMe @location-found="handleLocationFound" @location-error="handleLocationError" />
         <LogIn v-if="!isAuthenticated" />
         <LogOut v-if="isAuthenticated" />
@@ -612,12 +626,14 @@ onMounted(() => {
     />
     <q-drawer v-model="leftDrawerOpen" show-if-above bordered>
       <q-list>
-        <q-item-label header>Event Actions</q-item-label>
+        <q-item-label header>{{ $t('app.eventActions') }}</q-item-label>
         <q-item v-if="isAuthenticated" clickable @click="selectComponent('AddEvent')">
           <q-item-section avatar>
             <q-icon name="add_location" />
           </q-item-section>
-          <q-item-section :class="{ 'text-red': editEventDialog }">Add Events</q-item-section>
+          <q-item-section :class="{ 'text-red': editEventDialog }">{{
+            $t('app.addEvent')
+          }}</q-item-section>
           <q-btn
             v-if="selectedComponent === 'AddEvent'"
             flat
@@ -631,7 +647,7 @@ onMounted(() => {
           <q-item-section avatar>
             <q-icon name="filter_list" />
           </q-item-section>
-          <q-item-section>Filter Events</q-item-section>
+          <q-item-section>{{ $t('app.filterEvents') }}</q-item-section>
           <q-btn
             v-if="selectedComponent === 'FilterEvents'"
             flat
@@ -642,12 +658,12 @@ onMounted(() => {
           ></q-btn>
         </q-item>
         <q-separator spaced size="2px" />
-        <q-item-label header>User Tools</q-item-label>
+        <q-item-label header>{{ $t('app.userTools') }}</q-item-label>
         <q-item clickable @click="selectComponent('EmailSubscription')" v-if="isAuthenticated">
           <q-item-section avatar>
             <q-icon name="email" />
           </q-item-section>
-          <q-item-section>Email Notifications</q-item-section>
+          <q-item-section>{{ $t('app.emailSubscriptions') }}</q-item-section>
           <q-btn
             v-if="selectedComponent === 'EmailSubscription'"
             flat
@@ -802,5 +818,15 @@ onMounted(() => {
 
 .text-red {
   color: red;
+}
+
+.language-selector .q-field__native,
+.language-selector .q-field__label {
+  color: white !important;
+}
+
+/* For the dropdown options (black text) */
+.language-selector .q-menu {
+  color: black !important;
 }
 </style>

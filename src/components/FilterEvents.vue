@@ -1,4 +1,7 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
+// eslint-disable-next-line no-unused-vars
+const { t } = useI18n()
 import { ref, watch, defineProps, defineEmits } from 'vue'
 
 defineProps({
@@ -47,19 +50,26 @@ watch(
 
 <template>
   <div class="q-pa-md">
-    <h5 class="q-mt-none">Filter Events</h5>
+    <h5 class="q-mt-none">{{ $t('app.filterEvents') }}</h5>
     <q-select
       v-model="selectedCategory"
       :options="['All', ...categories]"
-      label="Category"
+      :label="$t('app.category')"
       outlined
       dense
       class="q-mb-sm"
     />
-    <q-input v-model="nameFilter" label="Name contains" outlined dense clearable class="q-mb-sm" />
+    <q-input
+      v-model="nameFilter"
+      :label="$t('app.nameContains')"
+      outlined
+      dense
+      clearable
+      class="q-mb-sm"
+    />
     <q-input
       v-model="descriptionFilter"
-      label="Description contains"
+      :label="$t('app.descriptionContains')"
       outlined
       dense
       clearable
@@ -68,14 +78,14 @@ watch(
     <q-select
       v-model="selectedDistance"
       :options="distanceOptions"
-      label="Max distance"
+      :label="$t('app.maxDistance')"
       option-label="label"
       option-value="value"
       outlined
       dense
       class="q-mb-sm"
       :disable="!locationAvailable"
-      :hint="!locationAvailable ? 'Enable by locating yourself first' : ''"
+      :hint="!locationAvailable ? $t('app.enableLocating') : ''"
     />
   </div>
 </template>
