@@ -612,11 +612,12 @@ onMounted(() => {
     />
     <q-drawer v-model="leftDrawerOpen" show-if-above bordered>
       <q-list>
-        <q-item-label header>Menu</q-item-label>
-
+        <q-item-label header>Event Actions</q-item-label>
         <q-item v-if="isAuthenticated" clickable @click="selectComponent('AddEvent')">
+          <q-item-section avatar>
+            <q-icon name="add_location" />
+          </q-item-section>
           <q-item-section :class="{ 'text-red': editEventDialog }">Add Events</q-item-section>
-
           <q-btn
             v-if="selectedComponent === 'AddEvent'"
             flat
@@ -627,6 +628,9 @@ onMounted(() => {
           ></q-btn>
         </q-item>
         <q-item clickable @click="selectComponent('FilterEvents')">
+          <q-item-section avatar>
+            <q-icon name="filter_list" />
+          </q-item-section>
           <q-item-section>Filter Events</q-item-section>
           <q-btn
             v-if="selectedComponent === 'FilterEvents'"
@@ -637,7 +641,12 @@ onMounted(() => {
             @click.stop="selectComponent(null)"
           ></q-btn>
         </q-item>
-        <q-item clickable @click="selectComponent('EmailSubscription')">
+        <q-separator spaced size="2px" />
+        <q-item-label header>User Tools</q-item-label>
+        <q-item clickable @click="selectComponent('EmailSubscription')" v-if="isAuthenticated">
+          <q-item-section avatar>
+            <q-icon name="email" />
+          </q-item-section>
           <q-item-section>Email Notifications</q-item-section>
           <q-btn
             v-if="selectedComponent === 'EmailSubscription'"

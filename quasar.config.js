@@ -4,12 +4,10 @@
 import * as dotenv from 'dotenv'
 import { defineConfig } from '#q-app/wrappers'
 
-export default defineConfig(( ctx ) => {
+export default defineConfig(() => {
   //const envFile = ctx.dev ? '.env' : process.env.BUILD_ENV?.trim() === 'staging' ? '.env.staging' : '.env.production';
-  const envFile = '.env';
-  dotenv.config({path : envFile}).parsed,
-
-  console.log(`-----ENV file: ${envFile} -------------`)
+  const envFile = '.env'
+  dotenv.config({ path: envFile }).parsed, console.log(`-----ENV file: ${envFile} -------------`)
   return {
     // https://v2.quasar.dev/quasar-cli-vite/prefetch-feature
     // preFetch: true,
@@ -53,8 +51,8 @@ export default defineConfig(( ctx ) => {
       publicPath: process.env.APP_BASE_PATH || '/',
       // analyze: true,
       env: {
-        APP_BASE_PATH : process.env.APP_BASE_PATH,
-        EVENT_API : process.env.EVENT_API,
+        APP_BASE_PATH: process.env.APP_BASE_PATH,
+        EVENT_API: process.env.EVENT_API,
       },
       // rawDefine: {}
       // ignorePublicFolder: true,
@@ -87,7 +85,9 @@ export default defineConfig(( ctx ) => {
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#framework
     framework: {
-      config: {},
+      config: {
+        dark: false, // or 'auto' to follow system preference
+      },
 
       // iconSet: 'material-icons', // Quasar icon set
       // lang: 'en-US', // Quasar language pack
