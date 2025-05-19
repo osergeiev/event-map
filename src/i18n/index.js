@@ -9,11 +9,11 @@ const messages = {
   'uk-UA': uk,
 }
 
-const i18n = createI18n({
-  locale: 'en-US',
+export const i18n = createI18n({
+  legacy: false,
+  locale: localStorage.getItem('locale') || 'en-US',
   fallbackLocale: 'en-US',
   messages,
-  legacy: false,
 })
 
 export default i18n
