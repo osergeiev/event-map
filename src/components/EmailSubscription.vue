@@ -10,8 +10,9 @@ const exist = ref(false)
 const clearLocation = () => {
   formData.value.latitude = null
   formData.value.longitude = null
+  emit('delete-tmpemail')
 }
-
+const emit = defineEmits(['select-component', 'delete-tmpemail'])
 const props = defineProps({
   categories: {
     type: Array,
@@ -149,6 +150,10 @@ const handleSubmit = async () => {
   }
 }
 
+const selectComponent = () => {
+  emit('select-component')
+}
+
 const handleUnsubscribe = async () => {
   try {
     if (!confirm('Are you sure you want to unsubscribe and delete all preferences?')) return
@@ -183,8 +188,10 @@ const handleUnsubscribe = async () => {
 
 <template>
   <div class="q-pa-md">
-    <h5 class="q-mt-none">{{ $t('app.emailSubscriptions') }}</h5>
-
+    <div class="row items-center justify-between q-mb-md">
+      <h6 class="q-mt-none q-mb-none">{{ $t('app.emailSubscriptions') }}</h6>
+      <q-btn flat round dense icon="close" @click="selectComponent" class="q-mr-sm" />
+    </div>
     <q-input
       v-model="formData.email"
       :label="$t('app.email') + ' *'"

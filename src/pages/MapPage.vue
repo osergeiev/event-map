@@ -634,28 +634,12 @@ onMounted(() => {
           <q-item-section :class="{ 'text-red': editEventDialog }">{{
             $t('app.addEvent')
           }}</q-item-section>
-          <q-btn
-            v-if="selectedComponent === 'AddEvent'"
-            flat
-            round
-            dense
-            icon="close"
-            @click.stop="selectComponent(null)"
-          ></q-btn>
         </q-item>
         <q-item clickable @click="selectComponent('FilterEvents')">
           <q-item-section avatar>
             <q-icon name="filter_list" />
           </q-item-section>
           <q-item-section>{{ $t('app.filterEvents') }}</q-item-section>
-          <q-btn
-            v-if="selectedComponent === 'FilterEvents'"
-            flat
-            round
-            dense
-            icon="close"
-            @click.stop="selectComponent(null)"
-          ></q-btn>
         </q-item>
         <q-separator spaced size="2px" />
         <q-item-label header>{{ $t('app.userTools') }}</q-item-label>
@@ -664,14 +648,6 @@ onMounted(() => {
             <q-icon name="email" />
           </q-item-section>
           <q-item-section>{{ $t('app.emailSubscriptions') }}</q-item-section>
-          <q-btn
-            v-if="selectedComponent === 'EmailSubscription'"
-            flat
-            round
-            dense
-            icon="close"
-            @click.stop="selectComponent(null)"
-          ></q-btn>
         </q-item>
       </q-list>
 
@@ -682,6 +658,7 @@ onMounted(() => {
           :selected-coords="selectedCoords"
           @delete-tmp="deleteMarker"
           @event-submitted="handleEventSubmit"
+          @select-component="selectComponent(null)"
         />
       </div>
       <div v-else-if="selectedComponent === 'FilterEvents'" class="drawer-content">
@@ -689,6 +666,7 @@ onMounted(() => {
           :categories="categories"
           @filter-change="handleFilterChange"
           :location-available="!!userCoords"
+          @select-component="selectComponent(null)"
         />
       </div>
       <div v-else-if="selectedComponent === 'EmailSubscription'" class="drawer-content">
@@ -698,6 +676,8 @@ onMounted(() => {
           :selected-coords="selectedCoords"
           @update:selectedCoords="(val) => (selectedCoords = val)"
           @use-current-location="handleLocationFound"
+          @select-component="selectComponent(null)"
+          @delete-tmpemail="deleteMarker"
         />
       </div>
     </q-drawer>

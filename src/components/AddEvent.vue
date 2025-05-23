@@ -18,7 +18,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['event-submitted', 'delete-tmp'])
+const emit = defineEmits(['event-submitted', 'delete-tmp', 'select-component'])
 
 const eventCategory = ref('')
 const eventName = ref('')
@@ -35,6 +35,10 @@ watch(
     }
   },
 )
+
+const selectComponent = () => {
+  emit('select-component')
+}
 
 const useCurrentLocation = () => {
   if (!props.userCoords) {
@@ -75,7 +79,10 @@ const handleSubmit = () => {
 
 <template>
   <div class="q-pa-md">
-    <h5 class="q-mt-none">{{ $t('app.addEvent') }}</h5>
+    <div class="row items-center justify-between q-mb-md">
+      <h6 class="q-mt-none q-mb-none">{{ $t('app.addEvent') }}</h6>
+      <q-btn flat round dense icon="close" @click="selectComponent" class="q-mr-sm" />
+    </div>
     <q-select
       v-model="eventCategory"
       :options="categories"

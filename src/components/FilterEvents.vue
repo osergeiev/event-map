@@ -15,7 +15,7 @@ defineProps({
   },
 })
 
-const emit = defineEmits(['filter-change'])
+const emit = defineEmits(['filter-change', 'select-component'])
 
 const selectedCategory = ref('All')
 const nameFilter = ref('')
@@ -31,6 +31,10 @@ const distanceOptions = ref([
   { label: '50 km', value: 50 },
   { label: '100 km', value: 100 },
 ])
+
+const selectComponent = () => {
+  emit('select-component')
+}
 
 watch(
   [selectedCategory, nameFilter, descriptionFilter, selectedDistance],
@@ -50,7 +54,10 @@ watch(
 
 <template>
   <div class="q-pa-md">
-    <h5 class="q-mt-none">{{ $t('app.filterEvents') }}</h5>
+    <div class="row items-center justify-between q-mb-md">
+      <h6 class="q-mt-none q-mb-none">{{ $t('app.filterEvents') }}</h6>
+      <q-btn flat round dense icon="close" @click="selectComponent" class="q-mr-sm" />
+    </div>
     <q-select
       v-model="selectedCategory"
       :options="['All', ...categories]"
