@@ -6,8 +6,10 @@
 
         <q-select
           v-model="editedEvent.category"
-          :options="categories"
+          :options="categoryOptions"
           :label="$t('app.category') + ' *'"
+          option-label="label"
+          option-value="value"
           outlined
           dense
           class="q-mb-sm"
@@ -59,8 +61,9 @@
 
 <script setup>
 import { useI18n } from 'vue-i18n'
+import { ref, watch, computed } from 'vue'
+
 const { t } = useI18n()
-import { ref, watch } from 'vue'
 
 const props = defineProps({
   event: Object,
@@ -71,7 +74,32 @@ const emit = defineEmits(['update-event', 'close', 'delete-marker'])
 
 const showDialog = ref(true)
 const errorMessage = ref('')
-const editedEvent = ref({ ...props.event })
+
+const categoryMap = {
+  'Traffic & Accidents': 'traffic',
+  'Emergencies & Hazards': 'emergencies',
+  'Crime & Security': 'crime',
+  'Public Gatherings & Social Events': 'socialEvents',
+  'Community & Miscellaneous': 'community',
+}
+
+const editedEvent = ref({
+  ...props.event,
+  category: props.categories.find((cat) => cat === props.event.category)
+    ? {
+        value: props.event.category,
+        label: t('app.' + categoryMap[props.event.category]),
+      }
+    : { value: '', label: '' },
+})
+
+const categoryOptions = computed(() =>
+  props.categories.map((cat) => ({
+    label: t('app.' + (categoryMap[cat] || cat)),
+    value: cat,
+  })),
+)
+
 const statusOptions = ['approved', 'unapproved']
 
 const closeDialog = () => {

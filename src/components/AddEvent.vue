@@ -1,7 +1,62 @@
+<template>
+  <div class="q-pa-md">
+    <div class="row items-center justify-between q-mb-md">
+      <h6 class="q-mt-none q-mb-none">{{ $t('app.addEvent') }}</h6>
+      <q-btn flat round dense icon="close" @click="selectComponent" class="q-mr-sm" />
+    </div>
+    <q-select
+      v-model="eventCategory"
+      :options="categoryOptions"
+      :label="$t('app.category') + ' *'"
+      option-label="label"
+      option-value="value"
+      outlined
+      dense
+      class="q-mb-sm"
+    />
+    <q-input
+      v-model="eventName"
+      :label="$t('app.eventName') + ' *'"
+      outlined
+      dense
+      class="q-mb-sm"
+    />
+    <q-input
+      v-model="eventDescription"
+      :label="$t('app.description') + ' *'"
+      outlined
+      dense
+      type="textarea"
+      class="q-mb-sm"
+    />
+
+    <div class="q-mb-sm">
+      <div class="text-caption q-mb-sm">{{ $t('app.locationSelection') }}:</div>
+      <q-btn
+        :label="$t('app.useCurrentLocation')"
+        color="primary"
+        outline
+        dense
+        class="q-mr-sm"
+        @click="useCurrentLocation"
+      />
+      <div v-if="eventCoords" class="q-mt-sm">
+        {{ $t('app.selectedCoordinates') }}:<br />
+        {{ eventCoords[1].toFixed(6) }}, {{ eventCoords[0].toFixed(6) }}
+      </div>
+      <div v-else class="text-caption q-mt-sm">{{ $t('app.clickToSelect') }}</div>
+    </div>
+
+    <div v-if="errorMessage" class="text-negative q-mb-sm">{{ errorMessage }}</div>
+
+    <q-btn :label="$t('app.addEvent')" color="primary" class="full-width" @click="handleSubmit" />
+  </div>
+</template>
+
 <script setup>
 import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 
 const props = defineProps({
   categories: {
@@ -25,6 +80,21 @@ const eventName = ref('')
 const eventDescription = ref('')
 const errorMessage = ref('')
 const eventCoords = ref(null)
+
+const categoryMap = {
+  'Traffic & Accidents': 'traffic',
+  'Emergencies & Hazards': 'emergencies',
+  'Crime & Security': 'crime',
+  'Public Gatherings & Social Events': 'socialEvents',
+  'Community & Miscellaneous': 'community',
+}
+
+const categoryOptions = computed(() =>
+  props.categories.map((cat) => ({
+    label: t('app.' + (categoryMap[cat] || cat)),
+    value: cat,
+  })),
+)
 
 watch(
   () => props.selectedCoords,
@@ -76,56 +146,3 @@ const handleSubmit = () => {
   errorMessage.value = ''
 }
 </script>
-
-<template>
-  <div class="q-pa-md">
-    <div class="row items-center justify-between q-mb-md">
-      <h6 class="q-mt-none q-mb-none">{{ $t('app.addEvent') }}</h6>
-      <q-btn flat round dense icon="close" @click="selectComponent" class="q-mr-sm" />
-    </div>
-    <q-select
-      v-model="eventCategory"
-      :options="categories"
-      :label="$t('app.category') + ' *'"
-      outlined
-      dense
-      class="q-mb-sm"
-    />
-    <q-input
-      v-model="eventName"
-      :label="$t('app.eventName') + ' *'"
-      outlined
-      dense
-      class="q-mb-sm"
-    />
-    <q-input
-      v-model="eventDescription"
-      :label="$t('app.description') + ' *'"
-      outlined
-      dense
-      type="textarea"
-      class="q-mb-sm"
-    />
-
-    <div class="q-mb-sm">
-      <div class="text-caption q-mb-sm">{{ $t('app.locationSelection') }}:</div>
-      <q-btn
-        :label="$t('app.useCurrentLocation')"
-        color="primary"
-        outline
-        dense
-        class="q-mr-sm"
-        @click="useCurrentLocation"
-      />
-      <div v-if="eventCoords" class="q-mt-sm">
-        {{ $t('app.selectedCoordinates') }}:<br />
-        {{ eventCoords[1].toFixed(6) }}, {{ eventCoords[0].toFixed(6) }}
-      </div>
-      <div v-else class="text-caption q-mt-sm">{{ $t('app.clickToSelect') }}</div>
-    </div>
-
-    <div v-if="errorMessage" class="text-negative q-mb-sm">{{ errorMessage }}</div>
-
-    <q-btn :label="$t('app.addEvent')" color="primary" class="full-width" @click="handleSubmit" />
-  </div>
-</template>

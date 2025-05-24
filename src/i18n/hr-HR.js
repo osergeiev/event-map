@@ -37,5 +37,12 @@ export default {
     distance: 'Udaljenost',
     locationSelectionRequired: 'Zahtijeva odabir lokacije',
     enableLocating: 'Prvo odredite svoju lokaciju',
+    traffic: 'Promet i nesreće',
+    emergencies: 'Hitni slučajevi i opasnosti',
+    crime: 'Kriminal i sigurnost',
+    socialEvents: 'Javna okupljanja i društveni događaji',
+    community: 'Zajednica i ostalo',
+    createdAt: 'Kreirano',
+    all: 'Sve',
   },
 }

@@ -37,5 +37,12 @@ export default {
     distance: 'Distance',
     locationSelectionRequired: 'Location selection required',
     enableLocating: 'Enable by locating yourself first',
+    traffic: 'Traffic & Accidents',
+    emergencies: 'Emergencies & Hazards',
+    crime: 'Crime & Security',
+    socialEvents: 'Public Gatherings & Social Events',
+    community: 'Community & Miscellaneous',
+    createdAt: 'Created At',
+    all: 'All',
   },
 }

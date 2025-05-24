@@ -1,18 +1,15 @@
 <script setup>
 import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { useAuth0 } from '@auth0/auth0-vue'
 import AppSettings from 'src/settings.js'
 
 const { user, isAuthenticated, getAccessTokenSilently } = useAuth0()
 const exist = ref(false)
-const clearLocation = () => {
-  formData.value.latitude = null
-  formData.value.longitude = null
-  emit('delete-tmpemail')
-}
+
 const emit = defineEmits(['select-component', 'delete-tmpemail'])
+
 const props = defineProps({
   categories: {
     type: Array,
@@ -29,7 +26,7 @@ const props = defineProps({
 })
 
 const formData = ref({
-  category: null,
+  categoryName: null,
   name: null,
   description: null,
   distance: null,
@@ -49,7 +46,20 @@ const distanceOptions = ref([
 
 const errorMessage = ref('')
 const isLoading = ref(false)
+const categoryMap = {
+  'Traffic & Accidents': 'traffic',
+  'Emergencies & Hazards': 'emergencies',
+  'Crime & Security': 'crime',
+  'Public Gatherings & Social Events': 'socialEvents',
+  'Community & Miscellaneous': 'community',
+}
 
+const categoryOptions = computed(() =>
+  props.categories.map((cat) => ({
+    label: t('app.' + (categoryMap[cat] || cat)),
+    value: cat,
+  })),
+)
 onMounted(async () => {
   if (isAuthenticated.value) {
     formData.value.email = user.value.email
@@ -81,13 +91,27 @@ async function loadSavedPreferences() {
     if (res.ok) {
       exist.value = true
       const data = await res.json()
-      formData.value = { ...data }
+      formData.value = {
+        ...data,
+        categoryName: data.categoryName
+          ? {
+              value: data.categoryName,
+              label: t('app.' + (categoryMap[data.categoryName] || data.categoryName)),
+            }
+          : null,
+      }
     }
   } catch (error) {
     console.error('Error loading preferences:', error)
   } finally {
     isLoading.value = false
   }
+}
+
+const clearLocation = () => {
+  formData.value.latitude = null
+  formData.value.longitude = null
+  emit('delete-tmpemail')
 }
 
 const useCurrentLocation = () => {
@@ -112,7 +136,7 @@ const handleSubmit = async () => {
         },
         body: JSON.stringify({
           email: user.value.email,
-          categoryName: formData.value.categoryName,
+          categoryName: formData.value.categoryName.value,
           longitude: formData.value.longitude,
           latitude: formData.value.latitude,
           distance: formData.value.distance?.value,
@@ -130,7 +154,7 @@ const handleSubmit = async () => {
         },
         body: JSON.stringify({
           email: formData.value.email,
-          categoryName: formData.value.categoryName,
+          categoryName: formData.value.categoryName.value,
           longitude: formData.value.longitude,
           latitude: formData.value.latitude,
           distance: formData.value.distance?.value,
@@ -170,7 +194,7 @@ const handleUnsubscribe = async () => {
 
     exist.value = false
     formData.value = {
-      category: null,
+      categoryName: null,
       name: null,
       description: null,
       distance: null,
@@ -203,8 +227,10 @@ const handleUnsubscribe = async () => {
 
     <q-select
       v-model="formData.categoryName"
-      :options="categories"
+      :options="categoryOptions"
       :label="$t('app.category')"
+      option-label="label"
+      option-value="value"
       outlined
       dense
       class="q-mb-sm"

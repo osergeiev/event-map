@@ -1,57 +1,3 @@
-<script setup>
-import { useI18n } from 'vue-i18n'
-// eslint-disable-next-line no-unused-vars
-const { t } = useI18n()
-import { ref, watch, defineProps, defineEmits } from 'vue'
-
-defineProps({
-  categories: {
-    type: Array,
-    required: true,
-  },
-  locationAvailable: {
-    type: Boolean,
-    required: true,
-  },
-})
-
-const emit = defineEmits(['filter-change', 'select-component'])
-
-const selectedCategory = ref('All')
-const nameFilter = ref('')
-const descriptionFilter = ref('')
-const selectedDistance = ref('All')
-
-const distanceOptions = ref([
-  { label: 'All', value: 999999999 },
-  { label: '1 km', value: 1 },
-  { label: '5 km', value: 5 },
-  { label: '10 km', value: 10 },
-  { label: '20 km', value: 20 },
-  { label: '50 km', value: 50 },
-  { label: '100 km', value: 100 },
-])
-
-const selectComponent = () => {
-  emit('select-component')
-}
-
-watch(
-  [selectedCategory, nameFilter, descriptionFilter, selectedDistance],
-  ([category, name, description, distance]) => {
-    const emitName = name === null ? '' : name
-    const emitDescription = description === null ? '' : description
-    emit('filter-change', {
-      category,
-      name: emitName,
-      description: emitDescription,
-      distance,
-    })
-  },
-  { immediate: true },
-)
-</script>
-
 <template>
   <div class="q-pa-md">
     <div class="row items-center justify-between q-mb-md">
@@ -60,8 +6,10 @@ watch(
     </div>
     <q-select
       v-model="selectedCategory"
-      :options="['All', ...categories]"
+      :options="[t('app.all'), ...categoryOptions]"
       :label="$t('app.category')"
+      option-label="label"
+      option-value="value"
       outlined
       dense
       class="q-mb-sm"
@@ -96,3 +44,72 @@ watch(
     />
   </div>
 </template>
+
+<script setup>
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+import { ref, watch, defineProps, defineEmits, computed } from 'vue'
+
+const props = defineProps({
+  categories: {
+    type: Array,
+    required: true,
+  },
+  locationAvailable: {
+    type: Boolean,
+    required: true,
+  },
+})
+
+const emit = defineEmits(['filter-change', 'select-component'])
+
+const selectedCategory = ref(t('app.all'))
+const nameFilter = ref('')
+const descriptionFilter = ref('')
+const selectedDistance = ref(t('app.all'))
+
+const distanceOptions = ref([
+  { label: t('app.all'), value: 999999999 },
+  { label: '1 km', value: 1 },
+  { label: '5 km', value: 5 },
+  { label: '10 km', value: 10 },
+  { label: '20 km', value: 20 },
+  { label: '50 km', value: 50 },
+  { label: '100 km', value: 100 },
+])
+
+const categoryMap = {
+  'Traffic & Accidents': 'traffic',
+  'Emergencies & Hazards': 'emergencies',
+  'Crime & Security': 'crime',
+  'Public Gatherings & Social Events': 'socialEvents',
+  'Community & Miscellaneous': 'community',
+}
+
+const categoryOptions = computed(() =>
+  props.categories.map((cat) => ({
+    label: t('app.' + (categoryMap[cat] || cat)),
+    value: cat,
+  })),
+)
+
+const selectComponent = () => {
+  emit('select-component')
+}
+
+watch(
+  [selectedCategory, nameFilter, descriptionFilter, selectedDistance],
+  ([category, name, description, distance]) => {
+    const emitName = name === null ? '' : name
+    const emitDescription = description === null ? '' : description
+    emit('filter-change', {
+      category: category.value || t('app.all'),
+      name: emitName,
+      description: emitDescription,
+      distance,
+    })
+  },
+  { immediate: true },
+)
+</script>

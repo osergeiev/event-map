@@ -37,5 +37,12 @@ export default {
     distance: 'Відстань',
     locationSelectionRequired: 'Потрібно обрати місце',
     enableLocating: 'Увімкніть, знайшовши себе на карті',
+    traffic: 'Рух транспорту та аварії',
+    emergencies: 'Надзвичайні ситуації та загрози',
+    crime: 'Злочинність і безпека',
+    socialEvents: 'Громадські та соціальні події',
+    community: 'Громада та інше',
+    createdAt: 'Створено',
+    all: 'Всі',
   },
 }

@@ -19,6 +19,9 @@ import { Icon, Style } from 'ol/style'
 import OSM from 'ol/source/OSM'
 import { useAuth0 } from '@auth0/auth0-vue'
 import AppSettings from 'src/settings.js'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const { user, isAuthenticated, idTokenClaims, getAccessTokenSilently } = useAuth0()
 const selectedComponent = ref(null)
@@ -63,13 +66,14 @@ const deleteMarker = () => {
 const handleUpdateEvent = async (updatedEvent) => {
   try {
     const token = await getAccessTokenSilently()
+    console.log('Updated event:', updatedEvent)
     const res = await fetch(`${AppSettings.EventApi}/api/Event/${updatedEvent.id}`, {
       method: 'PUT',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         EventName: updatedEvent.name,
         Description: updatedEvent.description,
-        CategoryName: updatedEvent.category,
+        CategoryName: updatedEvent.category.value,
         Status: updatedEvent.status,
         Longitude: updatedEvent.coords[0],
         Latitude: updatedEvent.coords[1],
@@ -81,7 +85,10 @@ const handleUpdateEvent = async (updatedEvent) => {
 
     const index = eventLocations.value.findIndex((e) => e.id === updatedEvent.id)
     if (index !== -1) {
-      eventLocations.value[index] = updatedEvent
+      eventLocations.value[index] = {
+        ...updatedEvent,
+        category: updatedEvent.category.value, // Store just the English value
+      }
       refreshMarkers()
     }
 
@@ -152,7 +159,7 @@ const handleEventSubmit = async (newEvent) => {
       body: JSON.stringify({
         EventName: newEvent.name,
         Description: newEvent.description,
-        CategoryName: newEvent.category,
+        CategoryName: newEvent.category.value,
         Longitude: newEvent.coords[0],
         Latitude: newEvent.coords[1],
         Email: user.value.email,
@@ -217,7 +224,10 @@ function toggleLeftDrawer() {
 }
 
 function selectComponent(component) {
-  if (component === 'AddEvent' && editEventDialog.value) {
+  if (
+    (component === 'AddEvent' && editEventDialog.value) ||
+    (component === 'EmailSubscription' && editEventDialog.value)
+  ) {
     return
   }
   selectedComponent.value = component
@@ -271,7 +281,7 @@ function handleFilterChange(filters) {
   vectorSource.value.clear()
 
   const filteredEvents = eventLocations.value.filter((event) => {
-    const matchesCategory = filters.category === 'All' || event.category === filters.category
+    const matchesCategory = filters.category === t('app.all') || event.category === filters.category
     const matchesName =
       !filters.name.trim() || event.name.toLowerCase().includes(filters.name.toLowerCase().trim())
     const matchesDescription =
@@ -502,15 +512,24 @@ onMounted(() => {
 
       const coords = feature.getGeometry().getCoordinates()
       const eventData = feature.get('eventData')
+      const categoryMap = {
+        'Traffic & Accidents': 'traffic',
+        'Emergencies & Hazards': 'emergencies',
+        'Crime & Security': 'crime',
+        'Public Gatherings & Social Events': 'socialEvents',
+        'Community & Miscellaneous': 'community',
+      }
 
+      const categoryKey = categoryMap[eventData.category] || eventData.category
+      const categoryT = t('app.' + categoryKey, eventData.category)
       const popupElement = document.createElement('div')
       popupElement.className = 'popup'
       popupElement.innerHTML = `
         <div>
           <strong>${eventData.name}</strong><br>
-          <em>${eventData.category}</em><br>
+          <em>${categoryT}</em><br>
           ${eventData.description}<br>
-          Created: ${formatDateTime(eventData.date)}
+          ${t('app.createdAt')}: ${formatDateTime(eventData.date)}
         </div>
         <button class="close-btn">X</button>
         ${
@@ -647,7 +666,9 @@ onMounted(() => {
           <q-item-section avatar>
             <q-icon name="email" />
           </q-item-section>
-          <q-item-section>{{ $t('app.emailSubscriptions') }}</q-item-section>
+          <q-item-section :class="{ 'text-red': editEventDialog }">{{
+            $t('app.emailSubscriptions')
+          }}</q-item-section>
         </q-item>
       </q-list>
 
