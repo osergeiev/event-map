@@ -7,7 +7,7 @@ import AppSettings from 'src/settings.js'
 
 const { user, isAuthenticated, getAccessTokenSilently } = useAuth0()
 const exist = ref(false)
-
+const showForm = ref(false)
 const emit = defineEmits(['select-component', 'delete-tmpemail'])
 
 const props = defineProps({
@@ -33,6 +33,7 @@ const formData = ref({
   email: '',
   latitude: null,
   longitude: null,
+  id: null,
 })
 
 const distanceOptions = ref([
@@ -43,7 +44,8 @@ const distanceOptions = ref([
   { label: '50 km', value: 50 },
   { label: '100 km', value: 100 },
 ])
-
+const preferences = ref([])
+const editingId = ref(null)
 const errorMessage = ref('')
 const isLoading = ref(false)
 const categoryMap = {
@@ -81,24 +83,42 @@ async function loadSavedPreferences() {
   try {
     const token = await getAccessTokenSilently()
     isLoading.value = true
-    const res = await fetch(`${AppSettings.EventApi}/api/User/${formData.value.email}`, {
+    const res = await fetch(`${AppSettings.EventApi}/api/User/by-email/${formData.value.email}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
     })
+
     if (res.ok) {
-      exist.value = true
       const data = await res.json()
-      formData.value = {
-        ...data,
-        categoryName: data.categoryName
+      exist.value = data.length > 0
+
+      preferences.value = data.map((pref) => ({
+        ...pref,
+        id: pref.id,
+        categoryName: pref.categoryName
           ? {
-              value: data.categoryName,
-              label: t('app.' + (categoryMap[data.categoryName] || data.categoryName)),
+              value: pref.categoryName,
+              label: t('app.' + (categoryMap[pref.categoryName] || pref.categoryName)),
             }
           : null,
+        distance: pref.distance,
+      }))
+
+      if (data.length > 0 && !editingId.value) {
+        formData.value = {
+          ...data[0],
+          categoryName: data[0].categoryName
+            ? {
+                value: data[0].categoryName,
+                label: t('app.' + (categoryMap[data[0].categoryName] || data[0].categoryName)),
+              }
+            : null,
+          distance: distanceOptions.value.find((opt) => opt.value === data[0].distance),
+          id: data[0].id,
+        }
       }
     }
   } catch (error) {
@@ -126,46 +146,37 @@ const useCurrentLocation = () => {
 const handleSubmit = async () => {
   try {
     const token = await getAccessTokenSilently()
-    var res
-    if (!exist.value) {
-      res = await fetch(`${AppSettings.EventApi}/api/User`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          email: user.value.email,
-          categoryName: formData.value.categoryName.value,
-          longitude: formData.value.longitude,
-          latitude: formData.value.latitude,
-          distance: formData.value.distance?.value,
-          name: formData.value.name,
-          description: formData.value.description,
-        }),
-      })
-      exist.value = true
-    } else {
-      res = await fetch(`${AppSettings.EventApi}/api/User/${formData.value.email}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          email: formData.value.email,
-          categoryName: formData.value.categoryName.value,
-          longitude: formData.value.longitude,
-          latitude: formData.value.latitude,
-          distance: formData.value.distance?.value,
-          name: formData.value.name,
-          description: formData.value.description,
-        }),
-      })
+    const isEditing = editingId.value !== null
+
+    const body = {
+      email: user.value.email,
+      categoryName: formData.value.categoryName?.value,
+      longitude: formData.value.longitude,
+      latitude: formData.value.latitude,
+      distance: formData.value.distance?.value,
+      name: formData.value.name,
+      description: formData.value.description,
     }
+
+    const res = await fetch(
+      isEditing
+        ? `${AppSettings.EventApi}/api/User/${editingId.value}`
+        : `${AppSettings.EventApi}/api/User`,
+      {
+        method: isEditing ? 'PUT' : 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      },
+    )
 
     if (!res.ok) throw new Error('Failed to save preferences')
 
+    await loadSavedPreferences()
+    editingId.value = null
+    showForm.value = false
     errorMessage.value = ''
     alert('Preferences saved successfully!')
   } catch (error) {
@@ -174,8 +185,57 @@ const handleSubmit = async () => {
   }
 }
 
+const createNewPreference = () => {
+  editingId.value = null
+  showForm.value = true
+  formData.value = {
+    categoryName: null,
+    name: null,
+    description: null,
+    distance: null,
+    email: user.value.email,
+    latitude: null,
+    longitude: null,
+  }
+}
+
+const editPreference = (pref) => {
+  editingId.value = pref.id // Changed to lowercase 'id'
+  showForm.value = true
+  formData.value = {
+    ...pref,
+    categoryName: pref.categoryName,
+    distance: distanceOptions.value.find((opt) => opt.value === pref.distance), // Changed to lowercase 'distance'
+    id: pref.id, // Ensure ID is carried
+  }
+}
+
 const selectComponent = () => {
   emit('select-component')
+}
+
+const handleDelete = async (id) => {
+  if (!confirm('Delete this preference?')) return
+  try {
+    const token = await getAccessTokenSilently()
+    const res = await fetch(`${AppSettings.EventApi}/api/User/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    if (!res.ok) throw new Error('Failed to delete')
+
+    preferences.value = preferences.value.filter((p) => p.id !== id)
+    if (editingId.value === id) {
+      createNewPreference()
+    }
+    showForm.value = false
+    exist.value = preferences.value.length > 0
+    alert('Preference deleted!')
+  } catch (error) {
+    console.error('Delete error:', error)
+    errorMessage.value = 'Failed to delete preference'
+  }
 }
 
 const handleUnsubscribe = async () => {
@@ -183,16 +243,17 @@ const handleUnsubscribe = async () => {
     if (!confirm('Are you sure you want to unsubscribe and delete all preferences?')) return
 
     const token = await getAccessTokenSilently()
-    const res = await fetch(`${AppSettings.EventApi}/api/User/${formData.value.email}`, {
+    const res = await fetch(`${AppSettings.EventApi}/api/User/by-email/${formData.value.email}`, {
       method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` },
     })
 
     if (!res.ok) throw new Error('Failed to unsubscribe')
 
+    showForm.value = false
     exist.value = false
+    preferences.value = []
+    editingId.value = null
     formData.value = {
       categoryName: null,
       name: null,
@@ -212,108 +273,134 @@ const handleUnsubscribe = async () => {
 
 <template>
   <div class="q-pa-md">
-    <div class="row items-center justify-between q-mb-md">
-      <h6 class="q-mt-none q-mb-none">{{ $t('app.emailSubscriptions') }}</h6>
-      <q-btn flat round dense icon="close" @click="selectComponent" class="q-mr-sm" />
-    </div>
-    <q-input
-      v-model="formData.email"
-      :label="$t('app.email') + ' *'"
-      outlined
-      dense
-      class="q-mb-sm"
-      :disable="isAuthenticated"
-    />
-
-    <q-select
-      v-model="formData.categoryName"
-      :options="categoryOptions"
-      :label="$t('app.category')"
-      option-label="label"
-      option-value="value"
-      outlined
-      dense
-      class="q-mb-sm"
-      clearable
-    >
-    </q-select>
-
-    <q-input
-      v-model="formData.name"
-      :label="$t('app.nameContains')"
-      outlined
-      dense
-      clearable
-      class="q-mb-sm"
-    />
-
-    <q-input
-      v-model="formData.description"
-      :label="$t('app.descriptionContains')"
-      outlined
-      dense
-      clearable
-      class="q-mb-sm"
-    />
-
-    <div class="q-mb-sm">
-      <div class="text-caption q-mb-sm">{{ $t('app.locationSelection') }}:</div>
-      <div class="row items-center q-gutter-sm">
-        <q-btn
-          :label="$t('app.useCurrentLocation')"
-          color="primary"
-          outline
-          dense
-          @click="useCurrentLocation"
-          :disable="!userCoords"
-        />
-        <q-btn
-          :label="$t('app.clearLocation')"
-          color="negative"
-          outline
-          dense
-          @click="clearLocation"
-          :disable="!formData.latitude || !formData.longitude"
-        />
+    <div class="q-pa-sm">
+      <div class="row justify-center q-mb-md">
+        <q-btn label="New Preference" color="positive" @click="createNewPreference" />
       </div>
-      <div v-if="formData.latitude && formData.longitude" class="q-mt-sm">
-        {{ $t('app.selectedCoordinates') }}:<br />
-        {{ formData.latitude.toFixed(6) }}, {{ formData.longitude.toFixed(6) }}
-      </div>
-      <div v-else class="text-caption q-mt-sm">{{ $t('app.clickToSelect') }}</div>
+      <q-list bordered separator>
+        <q-item
+          v-for="pref in preferences"
+          :key="pref.id"
+          class="q-pa-sm rounded-borders"
+          style="background: #fff"
+        >
+          <q-item-section>
+            <div class="text-weight-bold">{{ pref.categoryName?.label }}</div>
+          </q-item-section>
+
+          <q-item-section side>
+            <div class="row q-gutter-xs">
+              <q-btn icon="edit" dense flat @click="editPreference(pref)" />
+              <q-btn icon="delete" color="negative" dense flat @click="handleDelete(pref.id)" />
+            </div>
+          </q-item-section>
+        </q-item>
+      </q-list>
     </div>
-
-    <q-select
-      v-model="formData.distance"
-      :options="distanceOptions"
-      :label="$t('app.distance')"
-      option-label="label"
-      option-value="value"
-      outlined
-      dense
-      class="q-mb-sm"
-      :disable="!formData.latitude || !formData.longitude"
-      :hint="$t('app.locationSelectionRequired')"
-      clearable
-    >
-    </q-select>
-
-    <div v-if="errorMessage" class="text-negative q-mb-sm">{{ errorMessage }}</div>
-
-    <q-btn
-      :label="$t('app.savePreferences')"
-      color="primary"
-      class="full-width"
-      @click="handleSubmit"
-    />
-    <div class="q-mt-md">
-      <q-btn
-        v-if="exist"
-        :label="$t('app.unsubscribe')"
-        color="negative"
-        class="full-width"
-        @click="handleUnsubscribe"
+    <div v-if="showForm">
+      <div class="row items-center justify-between q-mb-md">
+        <h6 class="q-mt-none q-mb-none">{{ $t('app.emailSubscriptions') }}</h6>
+        <q-btn flat round dense icon="close" @click="selectComponent" class="q-mr-sm" />
+      </div>
+      <q-input
+        v-model="formData.email"
+        :label="$t('app.email') + ' *'"
+        outlined
+        dense
+        class="q-mb-sm"
+        :disable="isAuthenticated"
       />
+
+      <q-select
+        v-model="formData.categoryName"
+        :options="categoryOptions"
+        :label="$t('app.category')"
+        option-label="label"
+        option-value="value"
+        outlined
+        dense
+        class="q-mb-sm"
+        clearable
+      >
+      </q-select>
+
+      <q-input
+        v-model="formData.name"
+        :label="$t('app.nameContains')"
+        outlined
+        dense
+        clearable
+        class="q-mb-sm"
+      />
+
+      <q-input
+        v-model="formData.description"
+        :label="$t('app.descriptionContains')"
+        outlined
+        dense
+        clearable
+        class="q-mb-sm"
+      />
+
+      <div class="q-mb-sm">
+        <div class="text-caption q-mb-sm">{{ $t('app.locationSelection') }}:</div>
+        <div class="row items-center q-gutter-sm">
+          <q-btn
+            :label="$t('app.useCurrentLocation')"
+            color="primary"
+            outline
+            dense
+            @click="useCurrentLocation"
+            :disable="!userCoords"
+          />
+          <q-btn
+            :label="$t('app.clearLocation')"
+            color="negative"
+            outline
+            dense
+            @click="clearLocation"
+            :disable="!formData.latitude || !formData.longitude"
+          />
+        </div>
+        <div v-if="formData.latitude && formData.longitude" class="q-mt-sm">
+          {{ $t('app.selectedCoordinates') }}:<br />
+          {{ formData.latitude.toFixed(6) }}, {{ formData.longitude.toFixed(6) }}
+        </div>
+        <div v-else class="text-caption q-mt-sm">{{ $t('app.clickToSelect') }}</div>
+      </div>
+
+      <q-select
+        v-model="formData.distance"
+        :options="distanceOptions"
+        :label="$t('app.distance')"
+        option-label="label"
+        option-value="value"
+        outlined
+        dense
+        class="q-mb-sm"
+        :disable="!formData.latitude || !formData.longitude"
+        :hint="$t('app.locationSelectionRequired')"
+        clearable
+      >
+      </q-select>
+
+      <div v-if="errorMessage" class="text-negative q-mb-sm">{{ errorMessage }}</div>
+
+      <q-btn
+        :label="$t('app.savePreferences')"
+        color="primary"
+        class="full-width"
+        @click="handleSubmit"
+      />
+      <div class="q-mt-md">
+        <q-btn
+          v-if="exist"
+          :label="$t('app.unsubscribe')"
+          color="negative"
+          class="full-width"
+          @click="handleUnsubscribe"
+        />
+      </div>
     </div>
   </div>
 </template>
