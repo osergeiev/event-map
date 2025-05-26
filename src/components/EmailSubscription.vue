@@ -299,7 +299,7 @@ const handleUnsubscribe = async () => {
       </div>
       <q-input
         v-model="formData.email"
-        :label="$t('app.email') + ' *'"
+        :label="'Email' + ' *'"
         outlined
         dense
         class="q-mb-sm"
