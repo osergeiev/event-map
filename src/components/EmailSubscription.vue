@@ -200,13 +200,13 @@ const createNewPreference = () => {
 }
 
 const editPreference = (pref) => {
-  editingId.value = pref.id // Changed to lowercase 'id'
+  editingId.value = pref.id
   showForm.value = true
   formData.value = {
     ...pref,
     categoryName: pref.categoryName,
-    distance: distanceOptions.value.find((opt) => opt.value === pref.distance), // Changed to lowercase 'distance'
-    id: pref.id, // Ensure ID is carried
+    distance: distanceOptions.value.find((opt) => opt.value === pref.distance),
+    id: pref.id,
   }
 }
 
