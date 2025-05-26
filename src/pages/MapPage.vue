@@ -662,13 +662,23 @@ onMounted(() => {
         </q-item>
         <q-separator spaced size="2px" />
         <q-item-label header>{{ $t('app.userTools') }}</q-item-label>
+
         <q-item clickable @click="selectComponent('EmailSubscription')" v-if="isAuthenticated">
           <q-item-section avatar>
             <q-icon name="email" />
           </q-item-section>
+
           <q-item-section :class="{ 'text-red': editEventDialog }">{{
             $t('app.emailSubscriptions')
           }}</q-item-section>
+          <q-btn
+            v-if="selectedComponent === 'EmailSubscription'"
+            flat
+            round
+            dense
+            icon="close"
+            @click.stop="selectComponent(null)"
+          ></q-btn>
         </q-item>
       </q-list>
 

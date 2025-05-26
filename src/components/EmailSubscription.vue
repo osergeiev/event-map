@@ -210,10 +210,6 @@ const editPreference = (pref) => {
   }
 }
 
-const selectComponent = () => {
-  emit('select-component')
-}
-
 const handleDelete = async (id) => {
   if (!confirm('Delete this preference?')) return
   try {
@@ -300,7 +296,6 @@ const handleUnsubscribe = async () => {
     <div v-if="showForm">
       <div class="row items-center justify-between q-mb-md">
         <h6 class="q-mt-none q-mb-none">{{ $t('app.emailSubscriptions') }}</h6>
-        <q-btn flat round dense icon="close" @click="selectComponent" class="q-mr-sm" />
       </div>
       <q-input
         v-model="formData.email"
